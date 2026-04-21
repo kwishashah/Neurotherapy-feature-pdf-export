@@ -13,14 +13,16 @@ public class LicenseInfo {
         this.expiry = expiry;
     }
 
-    // ✅ Check if expired
+    // ✅ Check if expired using trusted date
     public boolean isExpired() {
-        return expiry == null || LocalDate.now().isAfter(expiry);
+        LocalDate today = LicenseManager.getTrustedDate();
+        return expiry == null || today.isAfter(expiry);
     }
 
-    // ✅ Days left (never negative)
+    // ✅ Days left using trusted date (never negative)
     public long daysLeft() {
-        long days = ChronoUnit.DAYS.between(LocalDate.now(), expiry);
+        LocalDate today = LicenseManager.getTrustedDate();
+        long days = ChronoUnit.DAYS.between(today, expiry);
         return Math.max(days, 0);
     }
 

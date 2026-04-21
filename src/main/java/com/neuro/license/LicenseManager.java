@@ -5,20 +5,21 @@ import com.neuro.exceptions.LicenceException;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import javax.swing.*;
-import java.io.IOException;
+import java.io.*;
+import java.net.HttpURLConnection;
 import java.net.NetworkInterface;
+import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.Base64;
 import java.util.Enumeration;
-
+import java.time.format.DateTimeFormatter;
 public class LicenseManager {
 
     private LicenseManager() {}
 
-    // 🔐 MUST match generator project
     private static final String HMAC_ALGO = "HmacSHA256";
     private static final String SECRET_KEY = "your-very-secret-key";
 
@@ -30,6 +31,51 @@ public class LicenseManager {
             System.getProperty("user.home"), ".neuro", "trial.dat"
     );
 
+    // ================= EXTERNAL DATE =================
+    public static LocalDate getTrustedDate() {
+        try {
+            URL url = new URL("https://timeapi.io/api/Time/current/zone?timeZone=UTC");
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+
+            conn.setRequestMethod("GET");
+            conn.setConnectTimeout(5000);
+            conn.setReadTimeout(5000);
+            conn.setRequestProperty("User-Agent", "Mozilla/5.0");
+
+            BufferedReader reader = new BufferedReader(
+                    new InputStreamReader(conn.getInputStream())
+            );
+
+            StringBuilder response = new StringBuilder();
+            String line;
+
+            while ((line = reader.readLine()) != null) {
+                response.append(line);
+            }
+
+            reader.close();
+
+            String json = response.toString();
+
+            // 🔹 Extract date
+            String date = json.split("\"date\":\"")[1].split("\"")[0];
+
+            System.out.println("🌐 ONLINE DATE FETCHED");
+
+            String date1 = json.split("\"date\":\"")[1].split("\"")[0];
+
+            System.out.println("🌐 ONLINE DATE FETCHED: " + date1);
+
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("MM/dd/yyyy");
+            return LocalDate.parse(date1, formatter);
+
+        } catch (Exception e) {
+            System.out.println("❌ API ERROR: " + e.getMessage());
+            System.out.println("⚠️ Falling back to local date");
+
+            return LocalDate.now();
+        }
+    }
     // ================= MACHINE ID =================
     public static String getMachineIdentifier() {
         try {
@@ -38,13 +84,11 @@ public class LicenseManager {
             while (networks.hasMoreElements()) {
                 NetworkInterface network = networks.nextElement();
 
-                // ✅ Skip unwanted interfaces
                 if (network.isLoopback() || network.isVirtual() || !network.isUp())
                     continue;
 
                 String name = network.getName().toLowerCase();
 
-                // ✅ Prefer stable interfaces
                 if (!(name.contains("en0") || name.contains("eth0") || name.contains("wlan")))
                     continue;
 
@@ -92,18 +136,14 @@ public class LicenseManager {
             String expectedSignature = Base64.getEncoder()
                     .encodeToString(mac.doFinal(data.getBytes()));
 
-            // 🔥 DEBUG FIRST (before returning anything)
             System.out.println("----- LICENSE DEBUG -----");
             System.out.println("Decoded: " + decoded);
             System.out.println("Machine in license: " + machineId);
             System.out.println("Current machine: " + currentMachineId);
             System.out.println("Expiry: " + expiryDate);
             System.out.println("Type: " + type);
-            System.out.println("Signature (given): " + signature);
-            System.out.println("Signature (expected): " + expectedSignature);
             System.out.println("-------------------------");
 
-            // 🔴 Now validations
             if (!machineId.equals(currentMachineId)) {
                 System.out.println("❌ Machine mismatch");
                 return null;
@@ -116,25 +156,35 @@ public class LicenseManager {
 
             LocalDate expiry = LocalDate.parse(expiryDate);
 
+            // 🔥 Use external date here
+            if (expiry.isBefore(getTrustedDate())) {
+                System.out.println("❌ License expired");
+                return null;
+            }
+
             return new LicenseInfo(type, expiry);
 
         } catch (Exception e) {
             throw new LicenceException("Invalid License", e);
         }
     }
+
     // ================= TRIAL =================
     public static boolean isTrialValid() {
         try {
             if (!Files.exists(TRIAL_FILE)) {
                 Files.createDirectories(TRIAL_FILE.getParent());
-                Files.writeString(TRIAL_FILE, LocalDate.now().toString());
+                Files.writeString(TRIAL_FILE, getTrustedDate().toString());
                 return true;
             }
 
-            LocalDate start = LocalDate.parse(Files.readString(TRIAL_FILE));
-            long days = ChronoUnit.DAYS.between(start, LocalDate.now());
+            LocalDate start = LocalDate.parse(Files.readString(TRIAL_FILE).trim());
+            long daysUsed = ChronoUnit.DAYS.between(start, getTrustedDate());
 
-            return days <= 7;
+            long daysLeft = 7 - daysUsed;
+            System.out.println("Trial days left: " + daysLeft);
+
+            return daysUsed < 7;
 
         } catch (Exception e) {
             return false;
@@ -149,10 +199,16 @@ public class LicenseManager {
 
             System.out.println("🔐 Starting License Check...");
             System.out.println("LICENSE KEY FROM FILE: " + key);
+
             if (key == null) {
 
                 if (isTrialValid()) {
-                    JOptionPane.showMessageDialog(null, "Trial Mode Active");
+                    JOptionPane.showMessageDialog(null,
+                            "Trial Mode Active\nDays left: " +
+                                    (7 - ChronoUnit.DAYS.between(
+                                            LocalDate.parse(Files.readString(TRIAL_FILE).trim()),
+                                            getTrustedDate()
+                                    )));
                     return true;
                 }
 
@@ -163,12 +219,6 @@ public class LicenseManager {
             LicenseInfo info = validateLicenseKey(key);
 
             if (info == null) {
-                showLicenseDialog();
-                return false;
-            }
-
-            if (info.isExpired()) {
-                JOptionPane.showMessageDialog(null, "License Expired!");
                 showLicenseDialog();
                 return false;
             }
@@ -186,9 +236,9 @@ public class LicenseManager {
             return false;
         }
     }
+
     // ================= LICENSE UI =================
     private static void showLicenseDialog() {
-
         LicenseDialog dialog = new LicenseDialog();
         dialog.setVisible(true);
 
@@ -206,9 +256,7 @@ public class LicenseManager {
     public static String loadLicense() {
         try {
             if (!Files.exists(LICENSE_FILE)) return null;
-
             return Files.readString(LICENSE_FILE, StandardCharsets.UTF_8).trim();
-
         } catch (IOException e) {
             return null;
         }
