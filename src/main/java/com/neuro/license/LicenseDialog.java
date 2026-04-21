@@ -1,0 +1,60 @@
+
+package com.neuro.license;
+
+import javax.swing.*;
+import java.awt.*;
+
+public class LicenseDialog extends JDialog {
+
+    private JTextField txtKey;
+    private boolean success = false;
+
+    public LicenseDialog() {
+        setTitle("Activate License");
+        setSize(400, 220);
+        setLocationRelativeTo(null);
+        setModal(true);
+
+        JPanel panel = new JPanel(new BorderLayout(10,10));
+
+        JLabel title = new JLabel("Enter License Key", JLabel.CENTER);
+        title.setFont(new Font("Segoe UI", Font.BOLD, 16));
+
+        txtKey = new JTextField();
+
+        JButton btnActivate = new JButton("Activate");
+
+        btnActivate.addActionListener(e -> handleActivate());
+
+        panel.add(title, BorderLayout.NORTH);
+        panel.add(txtKey, BorderLayout.CENTER);
+        panel.add(btnActivate, BorderLayout.SOUTH);
+
+        panel.setBorder(BorderFactory.createEmptyBorder(20,20,20,20));
+
+        add(panel);
+    }
+
+    private void handleActivate() {
+        try {
+            String key = txtKey.getText().trim();
+
+            LicenseInfo info = LicenseManager.validateLicenseKey(key);
+
+            if (info != null && !info.isExpired()) {
+                LicenseManager.saveLicense(key);
+                success = true;
+                dispose();
+            } else {
+                JOptionPane.showMessageDialog(this, "Invalid or expired license");
+            }
+
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(this, "Error validating license");
+        }
+    }
+
+    public boolean isSuccess() {
+        return success;
+    }
+}

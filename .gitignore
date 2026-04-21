@@ -1,0 +1,18 @@
+# Build output
+out/
+*.class
+*.jar
+
+# IDE / editor files
+*.iml
+.idea/
+.vscode/
+
+# Logs
+*.log
+
+# Local configuration / credentials
+config.properties
+
+# MacOS system files
+.DS_Store

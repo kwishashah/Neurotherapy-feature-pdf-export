@@ -1,0 +1,366 @@
+package com.neuro.ui;
+
+import com.neuro.db.DBConnection;
+import com.neuro.dao.SessionDAO;
+
+import org.apache.pdfbox.pdmodel.*;
+import org.apache.pdfbox.pdmodel.font.PDType1Font;
+
+import javax.swing.*;
+import javax.swing.table.DefaultTableModel;
+import java.awt.*;
+import java.awt.Desktop;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+
+public class PatientDetailsFrame extends JFrame {
+
+    private JTextArea textArea;
+    private int patientId;
+    private DoctorDashboard parentFrame;
+    private String reportPath = "";
+
+    private JTable sessionTable;
+    private DefaultTableModel sessionModel;
+
+    public PatientDetailsFrame(DoctorDashboard parentFrame, int patientId) {
+
+        this.parentFrame = parentFrame;
+        this.patientId = patientId;
+
+        setTitle("Patient Details");
+        setSize(900, 700);
+        setLocationRelativeTo(null);
+        setDefaultCloseOperation(DISPOSE_ON_CLOSE);
+
+        setLayout(new BorderLayout());
+
+        // ================= TEXT AREA =================
+        textArea = new JTextArea();
+        textArea.setEditable(false);
+        textArea.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        textArea.setLineWrap(true);
+        textArea.setWrapStyleWord(true);
+
+        JScrollPane textScroll = new JScrollPane(textArea);
+
+        // ================= BUTTON PANEL =================
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+
+        JButton btnBack = new JButton("⬅ Back");
+        JButton btnAddSession = new JButton("Add Session");
+        JButton btnOpenReport = new JButton("📄 Open Report");
+        JButton btnExportPDF = new JButton("🧾 Export PDF");
+
+        btnBack.addActionListener(e -> {
+            parentFrame.setVisible(true);
+            dispose();
+        });
+
+        btnAddSession.addActionListener(e -> {
+            new SessionFormDialog(this, patientId, null).setVisible(true);
+        });
+
+        btnOpenReport.addActionListener(e -> {
+            try {
+                if (!reportPath.isEmpty()) {
+                    Desktop.getDesktop().open(new java.io.File(reportPath));
+                } else {
+                    JOptionPane.showMessageDialog(this, "No report available");
+                }
+            } catch (Exception ex) {
+                JOptionPane.showMessageDialog(this, "Cannot open file");
+            }
+        });
+
+        btnExportPDF.addActionListener(e -> exportToPDF());
+
+        buttonPanel.add(btnBack);
+        buttonPanel.add(btnAddSession);
+        buttonPanel.add(btnOpenReport);
+        buttonPanel.add(btnExportPDF);
+
+        // ================= TABLE =================
+        String[] columns = {
+                "ID", "Session No", "Date", "Treatment", "Pain Data", "Summary"
+        };
+
+        sessionModel = new DefaultTableModel(columns, 0);
+        sessionTable = new JTable(sessionModel);
+
+        sessionTable.setRowHeight(120);
+        JScrollPane tableScroll = new JScrollPane(sessionTable);
+        tableScroll.setPreferredSize(new Dimension(800, 200));
+
+        // 🔥 DOUBLE CLICK → OPEN SESSION
+        // 🔥 DOUBLE CLICK → OPEN SESSION
+        sessionTable.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseClicked(java.awt.event.MouseEvent e) {
+
+                if (e.getClickCount() == 2) {
+
+                    int row = sessionTable.getSelectedRow();
+
+                    if (row == -1) return;
+
+                    int sessionId = (int) sessionModel.getValueAt(row, 0);
+
+                    new SessionFormDialog(
+                            PatientDetailsFrame.this,
+                            patientId,
+                            sessionId
+                    ).setVisible(true);
+                }
+            }
+        });
+        // ================= TOP PANEL (TEXT + BUTTONS) =================
+        JPanel topPanel = new JPanel(new BorderLayout());
+        topPanel.add(textScroll, BorderLayout.CENTER);
+        topPanel.add(buttonPanel, BorderLayout.SOUTH);
+
+        // ================= SPLIT =================
+        JSplitPane splitPane = new JSplitPane(
+                JSplitPane.VERTICAL_SPLIT,
+                topPanel,
+                tableScroll
+        );
+
+        splitPane.setDividerLocation(400);
+
+        add(splitPane, BorderLayout.CENTER);
+
+        // ================= LOAD DATA =================
+        loadPatientDetails();
+        loadSessions();
+    }
+
+    // ================= LOAD SESSIONS =================
+    public void loadSessions() {
+        try {
+            sessionModel.setRowCount(0);
+
+            var data = SessionDAO.getSessionsByPatient(patientId);
+
+            for (var row : data) {
+
+//                String painData = ((String) row.get(4))
+//                        .replace(",", "\n")
+//                        .replace("->", " → ");
+                String painData = getShortPainPreview((String) row.get(4));
+
+                sessionModel.addRow(new Object[]{
+                        row.get(0),
+                        row.get(1),
+                        row.get(2),
+                        row.get(3),
+                        painData,
+                        row.get(6)
+                });
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    // ================= LOAD PATIENT DETAILS =================
+    private void loadPatientDetails() {
+
+        String sql = "SELECT * FROM PatientHistory WHERE patient_id = ?";
+
+        try (Connection con = DBConnection.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+
+            ps.setInt(1, patientId);
+            ResultSet rs = ps.executeQuery();
+
+            if (rs.next()) {
+
+                StringBuilder sb = new StringBuilder();
+
+                sb.append("=========== PATIENT DETAILS ===========\n\n");
+
+                sb.append("Name: ").append(safe(rs.getString("patient_name"))).append("\n");
+                sb.append("Mobile: ").append(safe(rs.getString("mobile_number"))).append("\n");
+                sb.append("Age: ").append(rs.getInt("age")).append("\n");
+                sb.append("Gender: ").append(safe(rs.getString("gender"))).append("\n");
+                sb.append("Marital Status: ").append(safe(rs.getString("marital_status"))).append("\n\n");
+
+                sb.append("Address: ").append(safe(rs.getString("address"))).append("\n");
+                sb.append("Occupation: ").append(safe(rs.getString("occupation"))).append("\n");
+                sb.append("Blood Group: ").append(safe(rs.getString("blood_group"))).append("\n");
+                sb.append("Height: ").append(safe(rs.getString("height"))).append(" cm\n");
+                sb.append("Weight: ").append(safe(rs.getString("weight"))).append(" kg\n\n");
+
+                sb.append("Suffering Duration: ").append(safe(rs.getString("suffering_duration"))).append("\n");
+                sb.append("Main Disease: ").append(safe(rs.getString("main_disease"))).append("\n");
+                sb.append("Complications: ").append(safe(rs.getString("complications"))).append("\n");
+                sb.append("Symptoms: ").append(safe(rs.getString("symptoms"))).append("\n\n");
+
+                // 🔴 PAIN POINTS
+                String[] labels = {
+                        "Pan","Gas","Gast","WD","Gal","Spl","Liv","Mu",
+                        "Rtov","Ltov","Dys","Const","Liv0","Mul0","Follic","Thia","B12","Nia"
+                };
+
+                String painRaw = safe(rs.getString("pain_points"));
+                String[] values = painRaw.split(",");
+
+                sb.append("----- Pain Points -----\n");
+
+                for (int i = 0; i < labels.length && i < values.length; i++) {
+                    sb.append(labels[i]).append(": ").append(values[i]).append("\n");
+                }
+
+                for (String v : values) {
+                    if (v.startsWith("L4=")) {
+                        sb.append("Left 4th: ").append(v.replace("L4=", "")).append("\n");
+                    }
+                    if (v.startsWith("R4=")) {
+                        sb.append("Right 4th: ").append(v.replace("R4=", "")).append("\n");
+                    }
+                }
+
+                sb.append("\n");
+
+                sb.append("Previous Treatment: ").append(safe(rs.getString("previous_treatment"))).append("\n");
+                sb.append("Medicines: ").append(safe(rs.getString("medicines"))).append("\n");
+                sb.append("Detailed History: ").append(safe(rs.getString("detailed_history"))).append("\n");
+                sb.append("Examination: ").append(safe(rs.getString("examination"))).append("\n\n");
+
+                sb.append("----- VITALS -----\n");
+                sb.append("BP: ").append(safe(rs.getString("bp"))).append("\n");
+                sb.append("Pulse: ").append(safe(rs.getString("pulse"))).append("\n");
+                sb.append("O2: ").append(safe(rs.getString("o2"))).append("\n");
+                sb.append("Temperature: ").append(safe(rs.getString("temperature"))).append("\n\n");
+
+                reportPath = safe(rs.getString("reports"));
+
+                sb.append("Reports: ").append(reportPath).append("\n");
+                if (!reportPath.isEmpty()) {
+                    sb.append("(Use 'Open Report' button to view)\n");
+                }
+
+                sb.append("Report Analysis: ").append(safe(rs.getString("media"))).append("\n");
+                sb.append("Allergy: ").append(safe(rs.getString("patient_story"))).append("\n");
+                sb.append("Remarks: ").append(safe(rs.getString("remarks"))).append("\n");
+
+                textArea.setText(sb.toString());
+            }
+
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(this, "Error loading details:\n" + e.getMessage());
+        }
+    }
+
+    private String safe(String value) {
+        return value == null ? "" : value;
+    }
+
+
+    private String getShortPainPreview(String painData) {
+
+        if (painData == null || painData.isEmpty()) return "";
+
+        String[] labels = {"Pan","Gas","Gast","WD","Gal","Spl","Liv","Mu",
+                "Rtov","Ltov","Dys","Const","Liv0","Mul0","Follic","Thia","B12","Nia"};
+
+        String[] pairs = painData.split(",");
+
+        StringBuilder sb = new StringBuilder();
+
+        int count = 0;
+
+        for (int i = 0; i < pairs.length && i < labels.length; i++) {
+
+            if (pairs[i].contains("->")) {
+
+                String[] vals = pairs[i].split("->");
+
+                if (!vals[0].equals(vals[1])) {
+
+                    sb.append(labels[i]).append(": ")
+                            .append(vals[0]).append("→").append(vals[1]).append("  ");
+
+                    count++;
+                }
+            }
+
+            if (count == 2) break;
+        }
+
+        if (count == 0) return "No Change";
+
+        return sb.toString();
+    }
+    // ================= EXPORT PDF =================
+    private void exportToPDF() {
+        try {
+            JFileChooser chooser = new JFileChooser();
+
+            if (chooser.showSaveDialog(this) == JFileChooser.APPROVE_OPTION) {
+
+                String path = chooser.getSelectedFile().getAbsolutePath() + ".pdf";
+
+                PDDocument doc = new PDDocument();
+                PDPage page = new PDPage();
+                doc.addPage(page);
+
+                PDPageContentStream content = new PDPageContentStream(doc, page);
+
+                content.setFont(PDType1Font.HELVETICA, 12);
+                content.beginText();
+                content.setLeading(14.5f);
+                content.newLineAtOffset(50, 700);
+
+                for (String line : textArea.getText().split("\n")) {
+                    content.showText(line);
+                    content.newLine();
+                }
+
+                content.endText();
+                content.close();
+
+                doc.save(path);
+                doc.close();
+
+                JOptionPane.showMessageDialog(this, "PDF Saved!");
+
+            }
+
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(this, "Error creating PDF");
+        }
+    }
+    private String formatPainData(String painData) {
+
+        if (painData == null || painData.isEmpty()) return "";
+
+        String[] labels = {
+                "Pan","Gas","Gast","WD","Gal","Spl","Liv","Mu",
+                "Rtov","Ltov","Dys","Const","Liv0","Mul0","Follic","Thia","B12","Nia"
+        };
+
+        StringBuilder sb = new StringBuilder();
+
+        String[] pairs = painData.split(",");
+
+        int index = 0;
+
+        for (String p : pairs) {
+
+            if (p.contains("->") && index < labels.length) {
+
+                sb.append(labels[index])
+                        .append(": ")
+                        .append(p.replace("->", " → "))
+                        .append("\n");
+
+                index++;
+            }
+        }
+
+        return sb.toString();
+    }
+}
