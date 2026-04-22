@@ -3,7 +3,8 @@ package com.neuro.ui;
 import com.neuro.dao.PatientDAO;
 import com.neuro.dao.UserDAO;
 import com.neuro.model.Patient;
-
+import com.neuro.model.ClinicInfo;
+import com.neuro.config.ClinicConfig;
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
@@ -26,11 +27,17 @@ public class DoctorDashboard extends JFrame {
         // ================= TOP BAR =================
         JPanel topBar = new JPanel(new BorderLayout());
         topBar.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        ClinicInfo info = ClinicConfig.load();
+        String clinicName = (info != null && info.getName() != null)
+                ? info.getName()
+                : "Neurotherapy Clinic";
 
-        JLabel lblTitle = new JLabel("Neurotherapy Clinic");
-        lblTitle.setFont(new Font("Segoe UI", Font.BOLD, 20));
+        JLabel lblTitle = new JLabel(clinicName);
+       // JLabel lblTitle = new JLabel("Neurotherapy Clinic");
+        //lblTitle.setFont(new Font("Segoe UI", Font.BOLD, 20));
 
         JButton btnAddPatient = new JButton("➕ Add Patient");
+
         JButton btnLogout = new JButton("Logout");
 
         JPanel rightPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
@@ -55,6 +62,17 @@ public class DoctorDashboard extends JFrame {
         JButton btnSearch = new JButton("Search");
         searchPanel.add(btnSearch);
         mainPanel.add(searchPanel, BorderLayout.NORTH);
+
+        //clinic logo and name
+        JButton settingsBtn = new JButton("Clinic Settings");
+
+        settingsBtn.addActionListener(e -> {
+            new ClinicSettingsDialog().setVisible(true);
+        });
+        //JPanel rightPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        rightPanel.add(settingsBtn);   // ✅ ADD THIS LINE
+        rightPanel.add(btnAddPatient);
+        rightPanel.add(btnLogout);
 
         // Table
         String[] columns = {"Patient ID", "Name", "Mobile", "Age", "Gender"};

@@ -2,10 +2,11 @@ package com.neuro.ui;
 
 import com.neuro.db.DBConnection;
 import com.neuro.dao.SessionDAO;
-
+import com.neuro.model.ClinicInfo;
 import org.apache.pdfbox.pdmodel.*;
 import org.apache.pdfbox.pdmodel.font.PDType1Font;
-
+import org.apache.pdfbox.pdmodel.font.PDFont;
+import com.neuro.config.ClinicConfig;
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
@@ -13,7 +14,10 @@ import java.awt.Desktop;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
-
+import org.apache.pdfbox.pdmodel.graphics.image.PDImageXObject;
+import java.util.List;
+import java.util.ArrayList;
+import java.io.*;
 public class PatientDetailsFrame extends JFrame {
 
     private JTextArea textArea;
@@ -295,43 +299,153 @@ public class PatientDetailsFrame extends JFrame {
         return sb.toString();
     }
     // ================= EXPORT PDF =================
+
     private void exportToPDF() {
+
         try {
             JFileChooser chooser = new JFileChooser();
 
-            if (chooser.showSaveDialog(this) == JFileChooser.APPROVE_OPTION) {
+            if (chooser.showSaveDialog(this) != JFileChooser.APPROVE_OPTION) return;
 
-                String path = chooser.getSelectedFile().getAbsolutePath() + ".pdf";
+            String path = chooser.getSelectedFile().getAbsolutePath() + ".pdf";
 
-                PDDocument doc = new PDDocument();
+            try (PDDocument doc = new PDDocument()) {
+
                 PDPage page = new PDPage();
                 doc.addPage(page);
 
                 PDPageContentStream content = new PDPageContentStream(doc, page);
 
-                content.setFont(PDType1Font.HELVETICA, 12);
+                PDFont font = PDType1Font.HELVETICA;
+                float fontSize = 12;
+                float leading = 14.5f;
+
+                float margin = 50;
+                float yStart = 750;
+                float yPosition = yStart;
+                float width = page.getMediaBox().getWidth() - 2 * margin;
+
+                // ================= HEADER (LOGO + NAME) =================
+                ClinicInfo info = ClinicConfig.load();
+
+                if (info == null) {
+                    System.out.println("❌ Clinic info is NULL");
+                } else {
+                    System.out.println("✅ Name: " + info.getName());
+                    System.out.println("✅ Logo: " + info.getLogoPath());
+                }
+
+                // 🔹 Draw logo (outside text mode)
+                if (info != null && info.getLogoPath() != null && !info.getLogoPath().isEmpty()) {
+                    try {
+                        PDImageXObject logo =
+                                PDImageXObject.createFromFile(info.getLogoPath(), doc);
+
+                        content.drawImage(logo, 400, 720, 100, 50);
+
+                    } catch (Exception e) {
+                        System.out.println("❌ Logo failed: " + e.getMessage());
+                    }
+                }
+
+                // 🔹 Draw clinic name
                 content.beginText();
-                content.setLeading(14.5f);
-                content.newLineAtOffset(50, 700);
+                content.setFont(PDType1Font.HELVETICA_BOLD, 16);
+
+                if (info != null && info.getName() != null && !info.getName().isEmpty()) {
+
+                    float titleWidth = PDType1Font.HELVETICA_BOLD
+                            .getStringWidth(info.getName()) / 1000 * 16;
+
+                    float centerX = (page.getMediaBox().getWidth() - titleWidth) / 2;
+
+                    content.newLineAtOffset(centerX, yStart);
+                    content.showText(info.getName());
+
+                } else {
+                    content.newLineAtOffset(margin, yStart);
+                    content.showText("Clinic");
+                }
+
+                content.endText();
+
+                // Move below header
+                yPosition = yStart - 60;
+
+                // ================= MAIN CONTENT =================
+                content.beginText();
+                content.setFont(font, fontSize);
+                content.newLineAtOffset(margin, yPosition);
+                content.setLeading(leading);
 
                 for (String line : textArea.getText().split("\n")) {
-                    content.showText(line);
-                    content.newLine();
+
+                    // 🔥 sanitize unsupported characters
+                    line = line.replace("\t", "    ");
+
+                    for (String wrappedLine : wrapText(line, font, fontSize, width)) {
+
+                        if (yPosition <= 50) {
+                            content.endText();
+                            content.close();
+
+                            page = new PDPage();
+                            doc.addPage(page);
+
+                            content = new PDPageContentStream(doc, page);
+                            content.setFont(font, fontSize);
+
+                            yPosition = yStart;
+
+                            content.beginText();
+                            content.newLineAtOffset(margin, yPosition);
+                            content.setLeading(leading);
+                        }
+
+                        content.showText(wrappedLine);
+                        content.newLine();
+
+                        yPosition -= leading;
+                    }
                 }
 
                 content.endText();
                 content.close();
 
                 doc.save(path);
-                doc.close();
-
-                JOptionPane.showMessageDialog(this, "PDF Saved!");
-
             }
 
+            JOptionPane.showMessageDialog(this, "PDF Saved!");
+
         } catch (Exception e) {
+            e.printStackTrace();
             JOptionPane.showMessageDialog(this, "Error creating PDF");
         }
+    }
+
+    private List<String> wrapText(String text, PDFont font, float fontSize, float maxWidth) throws IOException {
+
+        // 🔥 remove unsupported characters
+        text = text.replace("\t", "    ");
+
+        List<String> lines = new ArrayList<>();
+        StringBuilder line = new StringBuilder();
+
+        for (String word : text.split(" ")) {
+
+            String testLine = line.toString() + word + " ";
+            float size = font.getStringWidth(testLine) / 1000 * fontSize;
+
+            if (size > maxWidth) {
+                lines.add(line.toString());
+                line = new StringBuilder(word + " ");
+            } else {
+                line.append(word).append(" ");
+            }
+        }
+
+        lines.add(line.toString());
+        return lines;
     }
     private String formatPainData(String painData) {
 
