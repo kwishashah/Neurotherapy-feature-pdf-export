@@ -16,7 +16,8 @@ public class DoctorDashboard extends JFrame {
     private JTextField txtSearchMobile;
     private JTable tblPatients;
     private DefaultTableModel tableModel;
-
+    JLabel lblLogo = new JLabel();
+    JLabel lblTitle = new JLabel();
     public DoctorDashboard() {
         setTitle("Doctor Dashboard");
         setSize(1000, 600);
@@ -27,15 +28,44 @@ public class DoctorDashboard extends JFrame {
         // ================= TOP BAR =================
         JPanel topBar = new JPanel(new BorderLayout());
         topBar.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        // 🔹 Clinic Header Panel
+        JPanel clinicHeader = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
+
+
+        lblTitle.setFont(new Font("Segoe UI", Font.BOLD, 20));
         ClinicInfo info = ClinicConfig.load();
         String clinicName = (info != null && info.getName() != null)
                 ? info.getName()
                 : "Neurotherapy Clinic";
 
-        JLabel lblTitle = new JLabel(clinicName);
+        if (info != null) {
+
+            // ✅ Set clinic name
+            if (info.getName() != null && !info.getName().isEmpty()) {
+                lblTitle.setText(info.getName());
+            } else {
+                lblTitle.setText("Neurotherapy Clinic");
+            }
+
+            // ✅ Set logo
+            if (info.getLogoPath() != null && !info.getLogoPath().isEmpty()) {
+                try {
+                    ImageIcon icon = new ImageIcon(info.getLogoPath());
+                    Image img = icon.getImage().getScaledInstance(40, 40, Image.SCALE_SMOOTH);
+                    lblLogo.setIcon(new ImageIcon(img));
+                } catch (Exception e) {
+                    System.out.println("Logo load failed");
+                }
+            }
+        } else {
+            lblTitle.setText("Neurotherapy Clinic");
+        }
+
+// 🔹 Add to header
+        clinicHeader.add(lblLogo);
+        clinicHeader.add(lblTitle);
        // JLabel lblTitle = new JLabel("Neurotherapy Clinic");
         //lblTitle.setFont(new Font("Segoe UI", Font.BOLD, 20));
-
         JButton btnAddPatient = new JButton("➕ Add Patient");
 
         JButton btnLogout = new JButton("Logout");
@@ -44,7 +74,7 @@ public class DoctorDashboard extends JFrame {
         rightPanel.add(btnAddPatient);
         rightPanel.add(btnLogout);
 
-        topBar.add(lblTitle, BorderLayout.WEST);
+        topBar.add(clinicHeader, BorderLayout.WEST);
         topBar.add(rightPanel, BorderLayout.EAST);
 
         add(topBar, BorderLayout.NORTH);
@@ -67,7 +97,12 @@ public class DoctorDashboard extends JFrame {
         JButton settingsBtn = new JButton("Clinic Settings");
 
         settingsBtn.addActionListener(e -> {
-            new ClinicSettingsDialog().setVisible(true);
+            ClinicSettingsDialog dialog = new ClinicSettingsDialog();
+            dialog.setModal(true);  // ensure proper blocking
+            dialog.setVisible(true);
+
+            // 🔁 Refresh ONLY after dialog is closed
+            refreshHeader();
         });
         //JPanel rightPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         rightPanel.add(settingsBtn);   // ✅ ADD THIS LINE
@@ -114,6 +149,35 @@ public class DoctorDashboard extends JFrame {
             }
         });
         form.setVisible(true);
+    }
+    private void refreshHeader() {
+
+        ClinicInfo info = ClinicConfig.load();
+
+        if (info != null) {
+
+            if (info.getName() != null && !info.getName().isEmpty()) {
+                lblTitle.setText(info.getName());
+            } else {
+                lblTitle.setText("Neurotherapy Clinic");
+            }
+
+            if (info.getLogoPath() != null && !info.getLogoPath().isEmpty()) {
+                try {
+                    ImageIcon icon = new ImageIcon(info.getLogoPath());
+                    Image img = icon.getImage().getScaledInstance(40, 40, Image.SCALE_SMOOTH);
+                    lblLogo.setIcon(new ImageIcon(img));
+                } catch (Exception e) {
+                    lblLogo.setIcon(null);
+                }
+            } else {
+                lblLogo.setIcon(null);
+            }
+
+        } else {
+            lblTitle.setText("Neurotherapy Clinic");
+            lblLogo.setIcon(null);
+        }
     }
 
     private void logout() {

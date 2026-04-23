@@ -17,6 +17,10 @@ import java.sql.ResultSet;
 import org.apache.pdfbox.pdmodel.graphics.image.PDImageXObject;
 import java.util.List;
 import java.util.ArrayList;
+import java.awt.image.BufferedImage;
+import javax.imageio.ImageIO;
+import org.apache.pdfbox.pdmodel.graphics.image.LosslessFactory;
+
 import java.io.*;
 public class PatientDetailsFrame extends JFrame {
 
@@ -325,24 +329,19 @@ public class PatientDetailsFrame extends JFrame {
                 float yPosition = yStart;
                 float width = page.getMediaBox().getWidth() - 2 * margin;
 
-                // ================= HEADER (LOGO + NAME) =================
+                // ================= HEADER =================
                 ClinicInfo info = ClinicConfig.load();
 
-                if (info == null) {
-                    System.out.println("❌ Clinic info is NULL");
-                } else {
-                    System.out.println("✅ Name: " + info.getName());
-                    System.out.println("✅ Logo: " + info.getLogoPath());
-                }
-
-                // 🔹 Draw logo (outside text mode)
+                // 🔹 Draw logo safely
                 if (info != null && info.getLogoPath() != null && !info.getLogoPath().isEmpty()) {
                     try {
-                        PDImageXObject logo =
-                                PDImageXObject.createFromFile(info.getLogoPath(), doc);
+                        BufferedImage bufferedImage = ImageIO.read(new File(info.getLogoPath()));
 
-                        content.drawImage(logo, 400, 720, 100, 50);
+                        if (bufferedImage != null) {
+                            PDImageXObject logo = LosslessFactory.createFromImage(doc, bufferedImage);
 
+                            content.drawImage(logo, 400, 720, 100, 50);
+                        }
                     } catch (Exception e) {
                         System.out.println("❌ Logo failed: " + e.getMessage());
                     }
@@ -369,7 +368,7 @@ public class PatientDetailsFrame extends JFrame {
 
                 content.endText();
 
-                // Move below header
+                // 🔹 Move below header
                 yPosition = yStart - 60;
 
                 // ================= MAIN CONTENT =================
@@ -380,7 +379,6 @@ public class PatientDetailsFrame extends JFrame {
 
                 for (String line : textArea.getText().split("\n")) {
 
-                    // 🔥 sanitize unsupported characters
                     line = line.replace("\t", "    ");
 
                     for (String wrappedLine : wrapText(line, font, fontSize, width)) {
