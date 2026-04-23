@@ -7,7 +7,7 @@ import java.util.Vector;
 
 public class SessionDAO {
 
-    // 🔹 Get all sessions of a patient
+    // ================= GET SESSIONS =================
     public static Vector<Vector<Object>> getSessionsByPatient(int patientId) throws Exception {
 
         Vector<Vector<Object>> data = new Vector<>();
@@ -17,58 +17,59 @@ public class SessionDAO {
                    treatment_given, pain_before, pain_after, session_summary
             FROM NeurotherapySessions
             WHERE patient_id = ?
-            ORDER BY session_number
+            ORDER BY session_number ASC
         """;
 
         try (Connection con = DBConnection.getConnection();
              PreparedStatement ps = con.prepareStatement(sql)) {
 
             ps.setInt(1, patientId);
-            ResultSet rs = ps.executeQuery();
 
-            while (rs.next()) {
-                Vector<Object> row = new Vector<>();
+            try (ResultSet rs = ps.executeQuery()) {
 
-                row.add(rs.getInt("session_id"));
-                row.add(rs.getInt("session_number"));
-                row.add(rs.getDate("session_date"));
-                row.add(rs.getString("treatment_given"));
-                row.add(rs.getString("pain_before"));
-                row.add(rs.getString("pain_after"));
-                row.add(rs.getString("session_summary"));
+                while (rs.next()) {
+                    Vector<Object> row = new Vector<>();
 
-                data.add(row);
+                    row.add(rs.getInt("session_id"));
+                    row.add(rs.getInt("session_number"));
+                    row.add(rs.getDate("session_date"));
+                    row.add(rs.getString("treatment_given"));
+                    row.add(rs.getString("pain_before"));
+                    row.add(rs.getString("pain_after"));
+                    row.add(rs.getString("session_summary"));
+
+                    data.add(row);
+                }
             }
         }
 
         return data;
     }
 
-    // 🔹 Get next session number (auto increment per patient)
+    // ================= NEXT SESSION NUMBER =================
     public static int getNextSessionNumber(int patientId) {
 
-        int next = 1;
+        String sql = "SELECT COALESCE(MAX(session_number),0) + 1 FROM NeurotherapySessions WHERE patient_id = ?";
 
-        try (Connection con = DBConnection.getConnection()) {
+        try (Connection con = DBConnection.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
 
-            String sql = "SELECT COUNT(*) FROM NeurotherapySessions WHERE patient_id = ?";
-            PreparedStatement ps = con.prepareStatement(sql);
             ps.setInt(1, patientId);
 
-            ResultSet rs = ps.executeQuery();
-
-            if (rs.next()) {
-                next = rs.getInt(1) + 1;
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt(1);
+                }
             }
 
         } catch (Exception e) {
             e.printStackTrace();
         }
 
-        return next;
+        return 1;
     }
 
-    // 🔹 Add new session
+    // ================= ADD SESSION =================
     public static void addSession(
             int patientId,
             int sessionNo,
@@ -76,7 +77,8 @@ public class SessionDAO {
             String treatment,
             String painBefore,
             String painAfter,
-            String summary) throws Exception {
+            String summary
+    ) throws Exception {
 
         String sql = """
             INSERT INTO NeurotherapySessions
@@ -100,7 +102,7 @@ public class SessionDAO {
         }
     }
 
-    // 🔹 Update existing session
+    // ================= UPDATE SESSION =================
     public static void updateSession(
             int sessionId,
             int sessionNo,
@@ -108,12 +110,17 @@ public class SessionDAO {
             String treatment,
             String painBefore,
             String painAfter,
-            String summary) throws Exception {
+            String summary
+    ) throws Exception {
 
         String sql = """
             UPDATE NeurotherapySessions
-            SET session_number=?, session_date=?,
-                treatment_given=?, pain_before=?, pain_after=?, session_summary=?
+            SET session_number=?,
+                session_date=?,
+                treatment_given=?,
+                pain_before=?,
+                pain_after=?,
+                session_summary=?
             WHERE session_id=?
         """;
 

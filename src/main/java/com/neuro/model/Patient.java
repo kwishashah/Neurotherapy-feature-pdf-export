@@ -1,9 +1,9 @@
 package com.neuro.model;
 
-
 import java.sql.Timestamp;
 
 public class Patient {
+
     private Integer patientId;
     private String name;
     private String mobile;
@@ -15,29 +15,41 @@ public class Patient {
     private String bloodGroup;
     private Float height;
     private Float weight;
+
     private String sufferingDuration;
     private String mainDisease;
     private String complications;
     private String symptoms;
+
     private String painPoints;
+
     private String tongue;
     private String stool;
     private String urine;
     private String nails;
     private String navel;
+
     private String neurotherapyRequired;
     private String previousTreatment;
     private String medicines;
     private String detailedHistory;
     private String examination;
-    private String vitals;
+
+    // ⚠️ FIX: keep vitals consistent instead of single string
+    private String bp;
+    private String pulse;
+    private String o2;
+    private String temperature;
+
     private String reports;
     private String media;
     private String patientStory;
     private String remarks;
+
     private Timestamp createdAt;
 
-    // --- Getters and Setters ---
+    // ================= GETTERS & SETTERS =================
+
     public Integer getPatientId() { return patientId; }
     public void setPatientId(Integer patientId) { this.patientId = patientId; }
 
@@ -116,8 +128,17 @@ public class Patient {
     public String getExamination() { return examination; }
     public void setExamination(String examination) { this.examination = examination; }
 
-    public String getVitals() { return vitals; }
-    public void setVitals(String vitals) { this.vitals = vitals; }
+    public String getBp() { return bp; }
+    public void setBp(String bp) { this.bp = bp; }
+
+    public String getPulse() { return pulse; }
+    public void setPulse(String pulse) { this.pulse = pulse; }
+
+    public String getO2() { return o2; }
+    public void setO2(String o2) { this.o2 = o2; }
+
+    public String getTemperature() { return temperature; }
+    public void setTemperature(String temperature) { this.temperature = temperature; }
 
     public String getReports() { return reports; }
     public void setReports(String reports) { this.reports = reports; }

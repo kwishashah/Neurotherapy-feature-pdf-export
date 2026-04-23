@@ -1,8 +1,11 @@
 package com.neuro.ui;
 
 import com.neuro.dao.PatientDAO;
+import com.neuro.session.UserSession;
+
 import org.apache.pdfbox.pdmodel.*;
 import org.apache.pdfbox.pdmodel.font.PDType1Font;
+
 import javax.swing.*;
 import java.awt.*;
 import java.text.SimpleDateFormat;
@@ -18,7 +21,7 @@ public class PatientForm extends JDialog {
     private JButton btnSave;
 
     public PatientForm(JFrame parent, Runnable onSaveCallback) {
-        super(parent, true); // modal
+        super(parent, true);
         this.onSaveCallback = onSaveCallback;
 
         setTitle("Add Patient");
@@ -30,16 +33,18 @@ public class PatientForm extends JDialog {
     }
 
     private void initComponents() {
+
         JPanel panel = new JPanel(new GridBagLayout());
         panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.insets = new Insets(8, 8, 8, 8);
         gbc.fill = GridBagConstraints.HORIZONTAL;
 
-        // Title
         JLabel lblTitle = new JLabel("Patient Registration");
         lblTitle.setFont(new Font("Arial", Font.BOLD, 18));
         lblTitle.setHorizontalAlignment(SwingConstants.CENTER);
+
         gbc.gridx = 0; gbc.gridy = 0; gbc.gridwidth = 2;
         panel.add(lblTitle, gbc);
         gbc.gridwidth = 1;
@@ -72,16 +77,16 @@ public class PatientForm extends JDialog {
         gbc.gridx = 1;
         panel.add(cmbGender, gbc);
 
-        // Marital Status
+        // Marital
         gbc.gridx = 0; gbc.gridy = 5;
         panel.add(new JLabel("Marital Status:"), gbc);
         cmbMarital = new JComboBox<>(new String[]{"-- Select --", "Single", "Married", "Divorced", "Widowed"});
         gbc.gridx = 1;
         panel.add(cmbMarital, gbc);
 
-        // Visit Date
+        // Date
         gbc.gridx = 0; gbc.gridy = 6;
-        panel.add(new JLabel("Visit Date (dd-MM-yyyy):"), gbc);
+        panel.add(new JLabel("Visit Date:"), gbc);
         txtDate = new JTextField(new SimpleDateFormat("dd-MM-yyyy").format(new Date()));
         gbc.gridx = 1;
         panel.add(txtDate, gbc);
@@ -90,90 +95,47 @@ public class PatientForm extends JDialog {
         gbc.gridx = 0; gbc.gridy = 7;
         panel.add(new JLabel("Symptoms:"), gbc);
         txtSymptoms = new JTextArea(3, 20);
-        JScrollPane scrollPane = new JScrollPane(txtSymptoms);
-        gbc.gridx = 1;
-        panel.add(scrollPane, gbc);
+        panel.add(new JScrollPane(txtSymptoms), gbc);
 
-        // Save button
+        // Save Button
         btnSave = new JButton("Save Patient");
         gbc.gridx = 0; gbc.gridy = 8; gbc.gridwidth = 2;
         panel.add(btnSave, gbc);
 
         btnSave.addActionListener(e -> {
-            if (!isFormValid()) return;
-            savePatient();
+            if (validateForm()) {
+                savePatient();
+            }
         });
 
         add(panel);
     }
 
-    private boolean isFormValid() {
-        // Name
+    private boolean validateForm() {
+
         if (txtName.getText().trim().isEmpty()) {
-            JOptionPane.showMessageDialog(this, "Patient name is required");
-            txtName.requestFocus();
+            JOptionPane.showMessageDialog(this, "Name required");
             return false;
         }
 
-        // Mobile
-        String mobile = txtMobile.getText().trim();
-        if (!mobile.matches("[6-9][0-9]{9}")) {
-            JOptionPane.showMessageDialog(this, "Enter valid 10-digit mobile number");
-            txtMobile.requestFocus();
+        if (!txtMobile.getText().trim().matches("[6-9][0-9]{9}")) {
+            JOptionPane.showMessageDialog(this, "Invalid mobile number");
             return false;
         }
 
-        // Age
         try {
-            int age = Integer.parseInt(txtAge.getText());
+            int age = Integer.parseInt(txtAge.getText().trim());
             if (age < 1 || age > 120) {
-                JOptionPane.showMessageDialog(this, "Age must be between 1 and 120");
-                txtAge.requestFocus();
-                return false;
-            }
-        } catch (NumberFormatException e) {
-            JOptionPane.showMessageDialog(this, "Age must be numeric");
-            txtAge.requestFocus();
-            return false;
-        }
-
-        // Gender
-        if (cmbGender.getSelectedIndex() == 0) {
-            JOptionPane.showMessageDialog(this, "Please select gender");
-            return false;
-        }
-
-        // Marital
-        if (cmbMarital.getSelectedIndex() == 0) {
-            JOptionPane.showMessageDialog(this, "Please select marital status");
-            return false;
-        }
-
-        // Visit date
-        String dateStr = txtDate.getText().trim();
-        if (dateStr.isEmpty()) {
-            JOptionPane.showMessageDialog(this, "Visit date is required");
-            txtDate.requestFocus();
-            return false;
-        }
-
-        try {
-            Date visitDate = new SimpleDateFormat("dd-MM-yyyy").parse(dateStr);
-            if (visitDate.after(new Date())) {
-                JOptionPane.showMessageDialog(this, "Future dates are not allowed");
-                txtDate.requestFocus();
+                JOptionPane.showMessageDialog(this, "Invalid age");
                 return false;
             }
         } catch (Exception e) {
-            JOptionPane.showMessageDialog(this, "Invalid date format. Use dd-MM-yyyy");
-            txtDate.requestFocus();
+            JOptionPane.showMessageDialog(this, "Age must be number");
             return false;
         }
 
-        // Symptoms
-        if (txtSymptoms.getText().trim().length() < 3) {
-            JOptionPane.showMessageDialog(this, "Please enter valid symptoms");
-            txtSymptoms.requestFocus();
+        if (cmbGender.getSelectedIndex() == 0 || cmbMarital.getSelectedIndex() == 0) {
+            JOptionPane.showMessageDialog(this, "Select gender & marital status");
             return false;
         }
 
@@ -181,72 +143,44 @@ public class PatientForm extends JDialog {
     }
 
     private void savePatient() {
+
         try {
-            SimpleDateFormat sdf = new SimpleDateFormat("dd-MM-yyyy");
-            Date utilDate = sdf.parse(txtDate.getText().trim());
-            java.sql.Timestamp timestamp = new java.sql.Timestamp(utilDate.getTime());
+            java.sql.Timestamp ts =
+                    new java.sql.Timestamp(new SimpleDateFormat("dd-MM-yyyy")
+                            .parse(txtDate.getText()).getTime());
 
             PatientDAO.savePatient(
-                    null, // patientId
-
                     txtName.getText(),
                     txtMobile.getText(),
-                    Integer.parseInt(txtAge.getText()),
+                    Integer.parseInt(txtAge.getText().trim()),
                     (String) cmbGender.getSelectedItem(),
                     (String) cmbMarital.getSelectedItem(),
 
-                    "", // address
-                    "", // occupation
-                    "", // blood group
+                    "", "", "",   // address, occupation, bloodgroup
+                    0f, 0f,
 
-                    0f, // height
-                    0f, // weight
+                    "", "", "", "", txtSymptoms.getText(),
+                    "", "", "", "", "", "",
 
-                    "", // sufferingDuration
-                    "", // mainDisease
-                    "", // complications
-                    txtSymptoms.getText(), // symptoms
-                    "", // painPoints
+                    "", "", "", "",   // neuro + history
+                    "", "", "", "",   // vitals
 
-                    "", "", "", "", "", "", // tongue → neurotherapy
+                    UserSession.getUserId(),   // ✅ FIXED USER ID
 
-                    "", // previousTreatment
-                    "", // medicines
-                    "", // detailedHistory
-                    "", // examination
+                    "", "", "", "",
 
-                    // ✅ NEW VITALS (VERY IMPORTANT)
-                    "", // bp
-                    "", // pulse
-                    "", // o2
-                    "", // temperature
-
-                    "", // reports
-                    "", // media (report analysis)
-                    "", // allergy (patient_story)
-                    "", // remarks
-
-                    new java.sql.Timestamp(System.currentTimeMillis())
+                    ts
             );
 
             JOptionPane.showMessageDialog(this, "Patient saved successfully");
+
             if (onSaveCallback != null) onSaveCallback.run();
+
             dispose();
 
         } catch (Exception e) {
-            JOptionPane.showMessageDialog(this, "Error saving patient:\n" + e.getMessage());
+            JOptionPane.showMessageDialog(this, "Error: " + e.getMessage());
             e.printStackTrace();
         }
-    }
-
-
-    private void clearForm() {
-        txtName.setText("");
-        txtMobile.setText("");
-        txtAge.setText("");
-        cmbGender.setSelectedIndex(0);
-        cmbMarital.setSelectedIndex(0);
-        txtSymptoms.setText("");
-        txtDate.setText(new SimpleDateFormat("dd-MM-yyyy").format(new Date()));
     }
 }

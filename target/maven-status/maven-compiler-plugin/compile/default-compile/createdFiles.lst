@@ -8,6 +8,7 @@ com/neuro/dao/UserDAO.class
 com/neuro/exceptions/LicenceException.class
 com/neuro/ui/DoctorDashboard$2.class
 com/neuro/ui/PatientDetailsFrame$1.class
+com/neuro/ui/ClinicSettingsDialog.class
 com/neuro/license/LicenseManager.class
 com/neuro/license/LicenseInfo.class
 com/neuro/dao/PatientDAO.class
@@ -15,11 +16,14 @@ com/neuro/ui/PatientHistoryFormMySQL$1.class
 com/neuro/license/LicenseDialog.class
 com/neuro/ui/PatientHistoryFormMySQL.class
 com/neuro/ui/PatientDetailsFrame.class
+com/neuro/util/PasswordUtil.class
 com/neuro/dao/SessionDAO.class
 com/neuro/ui/SignupFrame.class
 com/neuro/ui/DoctorDashboard$1.class
 com/neuro/model/PatientColumns.class
+com/neuro/model/ClinicInfo.class
 com/neuro/ui/DoctorDashboard.class
 com/neuro/ui/DoctorDashboard$3.class
 com/neuro/ui/LoginFrame.class
 TestMySQL.class
+com/neuro/config/ClinicConfig.class

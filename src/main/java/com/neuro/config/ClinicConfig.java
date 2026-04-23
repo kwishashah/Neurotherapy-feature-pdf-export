@@ -14,7 +14,9 @@ public class ClinicConfig {
     public static void save(ClinicInfo info) throws IOException {
         Files.createDirectories(CONFIG_FILE.getParent());
 
-        String data = info.getName() + "|" + info.getLogoPath();
+        String data = (info.getName() == null ? "" : info.getName())
+                + "|" + (info.getLogoPath() == null ? "" : info.getLogoPath());
+
         Files.writeString(CONFIG_FILE, data);
     }
 
@@ -22,10 +24,16 @@ public class ClinicConfig {
         try {
             if (!Files.exists(CONFIG_FILE)) return null;
 
-            String data = Files.readString(CONFIG_FILE);
-            String[] parts = data.split("\\|");
+            String data = Files.readString(CONFIG_FILE).trim();
 
-            return new ClinicInfo(parts[0], parts[1]);
+            if (data.isEmpty()) return null;
+
+            String[] parts = data.split("\\|", -1);
+
+            String name = parts.length > 0 ? parts[0] : "";
+            String logo = parts.length > 1 ? parts[1] : "";
+
+            return new ClinicInfo(name, logo);
 
         } catch (Exception e) {
             return null;

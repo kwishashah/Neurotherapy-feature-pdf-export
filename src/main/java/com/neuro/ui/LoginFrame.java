@@ -69,11 +69,19 @@ public class LoginFrame extends JFrame {
             String password = new String(txtPassword.getPassword());
 
             if (UserDAO.validateUser(username, password)) {
-                new DoctorDashboard().setVisible(true);
+
+                int userId = UserDAO.getUserId(username);
+                new DoctorDashboard(userId).setVisible(true);
+
+                new DoctorDashboard(userId).setVisible(true);
                 dispose();
+                System.out.println("Logged in userId = " + userId);
+
             } else {
                 JOptionPane.showMessageDialog(this, "Invalid credentials");
             }
+
+
         } catch (Exception e) {
             e.printStackTrace();
             JOptionPane.showMessageDialog(this, "Login error: " + e.getMessage());

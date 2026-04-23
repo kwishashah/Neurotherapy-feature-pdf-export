@@ -129,11 +129,12 @@ public class SignupFrame extends JDialog {
             }
 
             boolean success = UserDAO.insertUser(username, password);
-
+            int userId = UserDAO.getUserId(username);
             if (success) {
                 JOptionPane.showMessageDialog(this,
                         "Account created successfully!");
                 dispose();
+                new DoctorDashboard(userId).setVisible(true);
             } else {
                 JOptionPane.showMessageDialog(this,
                         "Error creating account");
@@ -144,4 +145,5 @@ public class SignupFrame extends JDialog {
             e.printStackTrace();
         }
     }
+
 }
