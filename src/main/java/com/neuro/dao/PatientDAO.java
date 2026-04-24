@@ -1,13 +1,15 @@
 package com.neuro.dao;
 
 import com.neuro.db.DBConnection;
-
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 
 public class PatientDAO {
-
+    private static final Logger logger =
+            LoggerFactory.getLogger(PatientDAO.class);
     // ================= SAVE PATIENT =================
     public static void savePatient(
             String name,
@@ -54,7 +56,7 @@ public class PatientDAO {
                 + "medicines, detailed_history, examination, bp, pulse, o2, temperature, user_id, "
                 + "reports, media, patient_story, remarks, created_at"
                 + ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-
+        logger.info("Saving patient '{}' for userId={}", name, userId);
         try (Connection con = DBConnection.getConnection();
              PreparedStatement ps = con.prepareStatement(sql)) {
 
@@ -110,7 +112,8 @@ public class PatientDAO {
              PreparedStatement ps = con.prepareStatement(sql)) {
 
             ps.setInt(1, userId);
-            System.out.println("Fetching patients for userId = " + userId);
+            //System.out.println("Fetching patients for userId = " + userId);
+            logger.info("Fetching patients for userId = {}", userId);
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     list.add(new Object[]{
