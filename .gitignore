@@ -3,6 +3,7 @@ out/
 *.class
 *.jar
 !tools/yguard.jar
+!tools/asm-9.6.jar
 
 # IDE / editor files
 *.iml
