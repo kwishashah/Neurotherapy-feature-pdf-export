@@ -2,9 +2,8 @@ package com.neuro.ui;
 
 import com.neuro.dao.PatientDAO;
 import com.neuro.session.UserSession;
-
-import org.apache.pdfbox.pdmodel.*;
-import org.apache.pdfbox.pdmodel.font.PDType1Font;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.swing.*;
 import java.awt.*;
@@ -12,6 +11,8 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 
 public class PatientForm extends JDialog {
+
+    private static final Logger logger = LoggerFactory.getLogger(PatientForm.class);
 
     private Runnable onSaveCallback;
 
@@ -129,7 +130,8 @@ public class PatientForm extends JDialog {
                 JOptionPane.showMessageDialog(this, "Invalid age");
                 return false;
             }
-        } catch (Exception e) {
+        } catch (NumberFormatException e) {
+            logger.warn("Invalid age input: {}", txtAge.getText(), e);
             JOptionPane.showMessageDialog(this, "Age must be number");
             return false;
         }
@@ -179,8 +181,8 @@ public class PatientForm extends JDialog {
             dispose();
 
         } catch (Exception e) {
+            logger.error("Patient save failed userId={}", UserSession.getUserId(), e);
             JOptionPane.showMessageDialog(this, "Error: " + e.getMessage());
-            e.printStackTrace();
         }
     }
 }

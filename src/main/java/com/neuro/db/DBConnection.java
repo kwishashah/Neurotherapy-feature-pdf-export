@@ -3,12 +3,13 @@ package com.neuro.db;
 import com.neuro.exceptions.DatabaseException;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.URISyntaxException;
+import java.nio.file.Files;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
+import java.util.List;
 import java.util.Properties;
 
 import org.slf4j.Logger;
@@ -16,6 +17,7 @@ import org.slf4j.LoggerFactory;
 
 public class DBConnection {
 
+    private DBConnection() {}
     private static final Logger logger =
             LoggerFactory.getLogger(DBConnection.class);
 
@@ -45,8 +47,12 @@ public class DBConnection {
         }
 
         Properties props = new Properties();
-        try (FileInputStream in = new FileInputStream(propsFile)) {
-            props.load(in);
+        try {
+            List<String> lines = Files.readAllLines(propsFile.toPath());
+            for (String line : lines) {
+                String[] parts = line.split("=");
+                props.put(parts[0].trim(), (parts.length > 1)? parts[1].trim():"");
+            }
         } catch (IOException e) {
             throw new DatabaseException("Error loading db.properties", e);
         }

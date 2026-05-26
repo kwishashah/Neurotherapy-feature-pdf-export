@@ -55,7 +55,9 @@ public class DoctorDashboard extends JFrame {
                 ImageIcon icon = new ImageIcon(info.getLogoPath());
                 Image img = icon.getImage().getScaledInstance(40, 40, Image.SCALE_SMOOTH);
                 lblLogo.setIcon(new ImageIcon(img));
-            } catch (Exception ignored) {}
+            } catch (Exception e) {
+                logger.warn("Failed to load clinic logo from {}", info.getLogoPath(), e);
+            }
         }
 
         clinicHeader.add(lblLogo);
@@ -125,13 +127,13 @@ public class DoctorDashboard extends JFrame {
         });
 
         tblPatients.addMouseListener(new MouseAdapter() {
+            @Override
             public void mouseClicked(MouseEvent e) {
                 if (e.getClickCount() == 2) viewPatientDetails();
             }
         });
 
         loadAllPatients();
-        //System.out.println("Dashboard userId = " + userId);
         logger.info("Dashboard initialized successfully for userId={}", userId);
     }
 

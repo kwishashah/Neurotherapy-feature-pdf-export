@@ -1,11 +1,15 @@
 package com.neuro.ui;
 
 import com.neuro.dao.UserDAO;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.swing.*;
 import java.awt.*;
 
 public class SignupFrame extends JDialog {
+
+    private static final Logger logger = LoggerFactory.getLogger(SignupFrame.class);
 
     private JTextField txtUsername;
     private JPasswordField txtPassword;
@@ -141,8 +145,8 @@ public class SignupFrame extends JDialog {
             }
 
         } catch (Exception e) {
+            logger.error("Signup failed", e);
             JOptionPane.showMessageDialog(this, "Error: " + e.getMessage());
-            e.printStackTrace();
         }
     }
 

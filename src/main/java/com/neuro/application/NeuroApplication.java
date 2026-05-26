@@ -7,39 +7,36 @@ import com.neuro.ui.LoginFrame;
 import com.neuro.ui.SignupFrame;
 
 import javax.swing.*;
-import java.awt.*;
-import java.awt.datatransfer.StringSelection;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 
 public class NeuroApplication {
 
-    public static void clearClipboard() {
-        try {
-            Toolkit.getDefaultToolkit()
-                    .getSystemClipboard()
-                    .setContents(new StringSelection(""), null);
-        } catch (Exception ignored) {}
-    }
+    private static final Logger logger =
+            LoggerFactory.getLogger(NeuroApplication.class);
 
     public static void main(String[] args) {
-
-        clearClipboard();
-
+        logger.info("Application Started");
         // Machine ID mode
         if (args.length > 0 && args[0].equalsIgnoreCase("--machine-id")) {
-            System.out.println(LicenseManager.getMachineIdentifier());
+            logger.info(LicenseManager.getMachineIdentifier());
             return;
         }
 
         // Look and feel
         try {
             UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
-        } catch (Exception ignored) {}
+        } catch (Exception e) {
+            logger.warn("Failed to set system look and feel", e);
+        }
 
         // LICENSE CHECK
         boolean valid = LicenseManager.checkLicenseOrExit();
+        logger.info("License is valid: {}", valid);
         if (!valid) {
-            JOptionPane.showMessageDialog(null,
-                    "License invalid or expired. Application will exit.");
+            logger.error("License invalid or expired. Application will exit.");
+            logger.info("Application exited");
             System.exit(0);
         }
 
@@ -47,11 +44,16 @@ public class NeuroApplication {
 
         // START UI
         SwingUtilities.invokeLater(() -> {
-            if (UserDAO.hasAnyUser()) {
-                new LoginFrame().setVisible(true);
+            boolean hasAnyUser = UserDAO.hasAnyUser();
+            if (hasAnyUser) {
+                logger.info("User already exists -> {}", valid);
+                com.neuro.ui.LoginFrame loginFrame = new LoginFrame();
+                loginFrame.setVisible(true);
             } else {
+                logger.info("User does not exist -> {}", valid);
                 new SignupFrame().setVisible(true);
             }
         });
+        logger.info("Application Exited");
     }
 }

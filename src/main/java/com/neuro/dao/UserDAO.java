@@ -1,22 +1,28 @@
 package com.neuro.dao;
 
 import com.neuro.db.DBConnection;
+import com.neuro.exceptions.DatabaseException;
 import com.neuro.util.PasswordUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.sql.*;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 
-public class UserDAO {
+public final class UserDAO {
 
     private static final Logger logger =
             LoggerFactory.getLogger(UserDAO.class);
+
+    private UserDAO() {}
 
     // ================= LOGIN VALIDATION =================
     public static boolean validateUser(
             String username,
             String password
-    ) throws Exception {
+    ) {
 
         String sql =
                 "SELECT password FROM users WHERE TRIM(username)=?";
@@ -58,39 +64,26 @@ public class UserDAO {
 
             return false;
 
-        } catch (Exception e) {
-
-            logger.error(
-                    "Login validation failed username={}",
-                    username,
-                    e
-            );
-
-            throw e;
+        } catch (SQLException e) {
+            throw new DatabaseException(
+                    "Login validation failed for username=" + username, e);
         }
     }
 
 
     // ================= CHECK USERS EXIST =================
-    public static boolean hasAnyUser(){
-
-        String sql="SELECT COUNT(*) FROM users";
-
+    public static boolean hasAnyUser() {
+        logger.info("hasAnyUser() called");
+        String sql = "SELECT COUNT(*) FROM users";
         Connection con = DBConnection.getConnection();
         try (PreparedStatement ps = con.prepareStatement(sql);
              ResultSet rs = ps.executeQuery()) {
-
             boolean exists = rs.next() && rs.getInt(1) > 0;
-
             logger.info("Has any user check result={}", exists);
-
             return exists;
-
-        } catch (Exception e) {
-
-            logger.error("Failed checking existing users", e);
-
-            return false;
+        } catch (SQLException e) {
+            throw new DatabaseException(
+                    "Failed checking whether any user exists", e);
         }
     }
 
@@ -99,7 +92,7 @@ public class UserDAO {
     public static boolean insertUser(
             String username,
             String password
-    ) throws Exception {
+    ) {
 
         logger.info(
                 "Creating user username={}",
@@ -109,7 +102,7 @@ public class UserDAO {
         String hashedPassword =
                 PasswordUtil.hash(password);
 
-        String sql=
+        String sql =
                 "INSERT INTO users(username,password) VALUES (?,?)";
 
         Connection conn = DBConnection.getConnection();
@@ -125,10 +118,8 @@ public class UserDAO {
             return rows > 0;
 
         } catch (SQLException e) {
-
-            logger.error("User creation failed username={}", username, e);
-
-            throw e;
+            throw new DatabaseException(
+                    "User creation failed for username=" + username, e);
         }
     }
 
@@ -136,9 +127,9 @@ public class UserDAO {
     // ================= USER EXISTS =================
     public static boolean userExists(
             String username
-    ) throws Exception {
+    ) {
 
-        String sql=
+        String sql =
                 "SELECT 1 FROM users WHERE TRIM(username)=?";
 
         Connection con = DBConnection.getConnection();
@@ -159,29 +150,22 @@ public class UserDAO {
                 return exists;
             }
 
-        } catch (Exception e) {
-
-            logger.error(
-                    "User existence check failed username={}",
-                    username,
-                    e
-            );
-
-            throw e;
+        } catch (SQLException e) {
+            throw new DatabaseException(
+                    "User existence check failed for username=" + username, e);
         }
     }
 
 
 
     // ================= ENCRYPT OLD PASSWORDS =================
-    public static void encryptExistingPasswords()
-            throws Exception {
+    public static void encryptExistingPasswords() {
 
         logger.info(
                 "Starting legacy password encryption"
         );
 
-        String select=
+        String select =
                 "SELECT username,password FROM users";
 
         Connection conn = DBConnection.getConnection();
@@ -210,6 +194,9 @@ public class UserDAO {
                     logger.info("Encrypted password for user={}", username);
                 }
             }
+        } catch (SQLException e) {
+            throw new DatabaseException(
+                    "Legacy password encryption failed", e);
         }
 
         logger.info(
@@ -222,9 +209,9 @@ public class UserDAO {
     // ================= GET USER ID =================
     public static int getUserId(
             String username
-    ) throws Exception {
+    ) {
 
-        String sql=
+        String sql =
                 "SELECT user_id FROM users WHERE TRIM(username)=?";
 
         Connection conn = DBConnection.getConnection();
@@ -252,11 +239,9 @@ public class UserDAO {
 
             return -1;
 
-        } catch (Exception e) {
-
-            logger.error("getUserId failed username={}", username, e);
-
-            throw e;
+        } catch (SQLException e) {
+            throw new DatabaseException(
+                    "getUserId failed for username=" + username, e);
         }
     }
 

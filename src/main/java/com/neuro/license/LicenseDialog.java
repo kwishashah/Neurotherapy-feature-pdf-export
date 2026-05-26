@@ -1,10 +1,15 @@
 
 package com.neuro.license;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import javax.swing.*;
 import java.awt.*;
 
 public class LicenseDialog extends JDialog {
+
+    private static final Logger logger = LoggerFactory.getLogger(LicenseDialog.class);
 
     private JTextField txtKey;
     private boolean success = false;
@@ -17,7 +22,7 @@ public class LicenseDialog extends JDialog {
 
         JPanel panel = new JPanel(new BorderLayout(10,10));
 
-        JLabel title = new JLabel("Enter License Key", JLabel.CENTER);
+        JLabel title = new JLabel("Enter License Key", SwingConstants.CENTER);
         title.setFont(new Font("Segoe UI", Font.BOLD, 16));
 
         txtKey = new JTextField();
@@ -50,6 +55,7 @@ public class LicenseDialog extends JDialog {
             }
 
         } catch (Exception e) {
+            logger.error("License validation failed", e);
             JOptionPane.showMessageDialog(this, "Error validating license");
         }
     }
