@@ -20,3 +20,4 @@ config.properties
 
 # MacOS system files
 .DS_Store
+/target/
