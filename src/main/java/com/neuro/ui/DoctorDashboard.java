@@ -1,16 +1,20 @@
+/*
+ * Copyright (c) 2026. All rights reserved. contact kwisha.shah2004 for more details.
+ */
 package com.neuro.ui;
 
+import com.neuro.app.AppContext;
 import com.neuro.config.ClinicConfig;
-import com.neuro.dao.PatientDAO;
 import com.neuro.model.ClinicInfo;
+import com.neuro.repo.PatientRepository;
 import com.neuro.session.UserSession;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import javax.swing.*;
-import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.awt.event.*;
 import java.util.List;
+import javax.swing.*;
+import javax.swing.table.DefaultTableModel;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 public class DoctorDashboard extends JFrame {
 
@@ -19,11 +23,16 @@ public class DoctorDashboard extends JFrame {
     private DefaultTableModel tableModel;
 
     private int userId;
-    private static final Logger logger = LoggerFactory.getLogger(DoctorDashboard.class);
+    private static final Logger logger = LogManager.getLogger(DoctorDashboard.class);
     private JLabel lblLogo = new JLabel();
     private JLabel lblTitle = new JLabel();
 
-    public DoctorDashboard(int userId) {
+    private final AppContext context;
+    private final PatientRepository patientRepo;
+
+    public DoctorDashboard(int userId, AppContext context) {
+        this.context = context;
+        this.patientRepo = context.patientRepo();
 
         // ✅ SAFE SESSION HANDLING
         this.userId = (userId > 0) ? userId : UserSession.getUserId();
@@ -140,7 +149,7 @@ public class DoctorDashboard extends JFrame {
     // ================= OPEN FORM =================
     private void openPatientForm() {
         logger.info("Opening patient registration form for userId={}", userId);
-        PatientHistoryFormMySQL form = new PatientHistoryFormMySQL(userId);
+        PatientHistoryFormMySQL form = new PatientHistoryFormMySQL(userId, context);
 
         form.addWindowListener(new WindowAdapter() {
             @Override
@@ -160,17 +169,15 @@ public class DoctorDashboard extends JFrame {
         try {
             logger.info("Loading all patients for userId={}", userId);
 
-            List<Object[]> patients = PatientDAO.getAllPatients(userId);
+            List<Object[]> patients = patientRepo.getAllPatients(userId);
 
             for (Object[] row : patients) {
                 tableModel.addRow(row);
             }
-            logger.info("Loaded {} patients into dashboard", patients.size()
-            );
+            logger.info("Loaded {} patients into dashboard", patients.size());
 
         } catch (Exception ex) {
-            logger.error("Failed loading patients for userId={}", userId, ex
-            );
+            logger.error("Failed loading patients for userId={}", userId, ex);
             JOptionPane.showMessageDialog(this, "Error loading patients:\n" + ex.getMessage());
         }
     }
@@ -188,19 +195,16 @@ public class DoctorDashboard extends JFrame {
         tableModel.setRowCount(0);
 
         try {
-            logger.info("Searching patients for userId={} mobile={}", userId, mobile
-            );
-            List<Object[]> patients = PatientDAO.searchPatientsByMobile(userId, mobile);
+            logger.info("Searching patients for userId={} mobile={}", userId, mobile);
+            List<Object[]> patients = patientRepo.searchPatientsByMobile(userId, mobile);
 
             for (Object[] row : patients) {
                 tableModel.addRow(row);
             }
-            logger.info("Search returned {} records", patients.size()
-            );
+            logger.info("Search returned {} records", patients.size());
 
         } catch (Exception ex) {
-            logger.error("Patient search failed for mobile={}", mobile, ex
-            );
+            logger.error("Patient search failed for mobile={}", mobile, ex);
             JOptionPane.showMessageDialog(this, "Search error:\n" + ex.getMessage());
         }
     }
@@ -211,42 +215,31 @@ public class DoctorDashboard extends JFrame {
         int row = tblPatients.getSelectedRow();
 
         if (row == -1) {
-            logger.warn("View details attempted without selecting patient"
-            );
+            logger.warn("View details attempted without selecting patient");
             JOptionPane.showMessageDialog(this, "Please select a patient.");
             return;
         }
 
         int patientId = (int) tableModel.getValueAt(row, 0);
-        logger.info("Opening patient details for patientId={}", patientId
-        );
+        logger.info("Opening patient details for patientId={}", patientId);
         setVisible(false);
-        new PatientDetailsFrame(this, patientId).setVisible(true);
+        new PatientDetailsFrame(this, patientId, context).setVisible(true);
     }
 
     // ================= LOGOUT =================
     private void logout() {
-        logger.info("Logout initiated by userId={}", userId
-        );
+        logger.info("Logout initiated by userId={}", userId);
         int confirm = JOptionPane.showConfirmDialog(
-                this,
-                "Are you sure you want to logout?",
-                "Logout",
-                JOptionPane.YES_NO_OPTION
-        );
+                this, "Are you sure you want to logout?", "Logout", JOptionPane.YES_NO_OPTION);
 
         if (confirm == JOptionPane.YES_OPTION) {
-            logger.info("User {} logged out successfully", userId
-            );
+            logger.info("User {} logged out successfully", userId);
             UserSession.clear();
-            new LoginFrame().setVisible(true);
+            new LoginFrame(context).setVisible(true);
             dispose();
-        }
-        else {
+        } else {
 
-            logger.info("Logout cancelled by userId={}",
-                    userId
-            );
+            logger.info("Logout cancelled by userId={}", userId);
         }
     }
 

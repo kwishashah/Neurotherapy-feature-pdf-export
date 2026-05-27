@@ -19,6 +19,7 @@
         <maven.compiler.target>17</maven.compiler.target>
         <mysql.version>8.0.33</mysql.version>
         <pdfbox.version>2.0.29</pdfbox.version>
+        <log4j.version>2.23.1</log4j.version>
         <maven.build.timestamp.format>yyyyMMdd-HHmmss</maven.build.timestamp.format>
     </properties>
 
@@ -41,17 +42,25 @@
     <artifactId>jbcrypt</artifactId>
     <version>0.4</version>
 </dependency>
+        <!-- Log4j 2 (API + core) -->
         <dependency>
-    <groupId>org.slf4j</groupId>
-    <artifactId>slf4j-api</artifactId>
-    <version>2.0.9</version>
-</dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-api</artifactId>
+            <version>${log4j.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-core</artifactId>
+            <version>${log4j.version}</version>
+        </dependency>
 
-<dependency>
-    <groupId>ch.qos.logback</groupId>
-    <artifactId>logback-classic</artifactId>
-    <version>1.4.11</version>
-</dependency>
+        <!-- Bridge any third-party libs (e.g. PDFBox) that still log via SLF4J -->
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-slf4j2-impl</artifactId>
+            <version>${log4j.version}</version>
+            <scope>runtime</scope>
+        </dependency>
 
         <!-- JUnit 5 (test scope) -->
         <dependency>
@@ -82,7 +91,6 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>3.2.5</version>
             </plugin>
-
             <!-- Assembly Plugin for creating executable JAR with dependencies -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -198,6 +206,8 @@
                                         <class classes="private" methods="private" fields="private">
                                             <patternset>
                                                 <include name="com.mysql.**"/>
+                                                <include name="org.slf4j.**"/>
+                                                <include name="org.apache.logging.log4j.**"/>
                                             </patternset>
                                         </class>
                                         </keep>
