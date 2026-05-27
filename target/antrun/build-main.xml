@@ -3,13 +3,13 @@
   <target name="main">
     <taskdef classname="com.yworks.yguard.YGuardTask" name="yguard">
       <classpath>
-        <pathelement location="/Users/rshah2/repos/personal/Neurotherapy-feature-pdf-export/tools/yguard.jar" />
-        <pathelement location="/Users/rshah2/repos/personal/Neurotherapy-feature-pdf-export/tools/asm-9.6.jar" />
+        <pathelement location="/Users/kwisha/Desktop/Neurotherapy-feature-pdf-export/tools/yguard.jar" />
+        <pathelement location="/Users/kwisha/Desktop/Neurotherapy-feature-pdf-export/tools/asm-9.6.jar" />
       </classpath>
     </taskdef>
     <yguard>
-      <inoutpair in="/Users/rshah2/repos/personal/Neurotherapy-feature-pdf-export/target/Dashboard.jar" out="/Users/rshah2/repos/personal/Neurotherapy-feature-pdf-export/target/Dashboard-1.1.0-20260526-084903.jar" />
-      <rename mainclass="com.neuro.application.NeuroApplication" logfile="/Users/rshah2/repos/personal/Neurotherapy-feature-pdf-export/target/yguard-rename.log">
+      <inoutpair in="/Users/kwisha/Desktop/Neurotherapy-feature-pdf-export/target/Dashboard.jar" out="/Users/kwisha/Desktop/Neurotherapy-feature-pdf-export/target/Dashboard-1.1.0-20260526-172453.jar" />
+      <rename mainclass="com.neuro.application.NeuroApplication" logfile="/Users/kwisha/Desktop/Neurotherapy-feature-pdf-export/target/yguard-rename.log">
         <keep>
           <class methods="public" name="com.neuro.application.NeuroApplication" fields="none" />
           <class implements="java.lang.Throwable" methods="public" fields="public" />
@@ -26,6 +26,6 @@
         </keep>
       </rename>
     </yguard>
-    <echo message="Release JAR: /Users/rshah2/repos/personal/Neurotherapy-feature-pdf-export/target/Dashboard-1.1.0-20260526-084903.jar" />
+    <echo message="Release JAR: /Users/kwisha/Desktop/Neurotherapy-feature-pdf-export/target/Dashboard-1.1.0-20260526-172453.jar" />
   </target>
 </project>
