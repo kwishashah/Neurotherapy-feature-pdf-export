@@ -51,8 +51,16 @@ public interface PatientRepository {
             throws SQLException;
 
     /** Returns a summary view of every patient owned by the given user. */
-    List<Object[]> getAllPatients(int userId) throws DatabaseException;
 
+    /** Returns paginated patients for the user. */
+    List<Object[]> getPatients(
+            int userId,
+            int page,
+            int pageSize
+    ) throws DatabaseException;
+
+    /** Returns total patient count. */
+    int getPatientCount(int userId) throws DatabaseException;
     /** Searches the user's patients by mobile-number fragment. */
     List<Object[]> searchPatientsByMobile(int userId, String mobile) throws DatabaseException;
 }
