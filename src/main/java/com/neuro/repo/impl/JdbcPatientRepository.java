@@ -17,7 +17,7 @@ import java.util.Objects;
 import java.util.function.Supplier;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import com.neuro.model.PatientSummary;
+import java.sql.SQLIntegrityConstraintViolationException;
 /** JDBC-backed {@link PatientRepository}. */
 public final class JdbcPatientRepository implements PatientRepository {
 
@@ -115,94 +115,68 @@ public final class JdbcPatientRepository implements PatientRepository {
         }
     }
 
-
     @Override
-    public List<PatientSummary> getPatients(
-            int userId,
-            int page,
-            int pageSize
-    ) throws DatabaseException {
-
-        List<PatientSummary> list = new ArrayList<>();
-
-        int offset = (page - 1) * pageSize;
-
-        String sql = """
-        SELECT
-            patient_id,
-            patient_name,
-            mobile_number,
-            age,
-            gender
-        FROM PatientHistory
-        WHERE user_id = ?
-        ORDER BY patient_id DESC
-        LIMIT ? OFFSET ?
-    """;
-
+    public List<Object[]> getAllPatients(int userId) throws DatabaseException {
+        List<Object[]> list = new ArrayList<>();
         Connection con = connectionSupplier.get();
-
-        try (PreparedStatement ps = con.prepareStatement(sql)) {
-
-            logger.info(
-                    "Fetching patients userId={} page={} pageSize={}",
-                    userId,
-                    page,
-                    pageSize
-            );
-
+        try (PreparedStatement ps = con.prepareStatement(SqlQueries.PATIENT_SELECT_ALL_BY_USER)) {
+            logger.info("Fetching patients for userId={}", userId);
             ps.setInt(1, userId);
-            ps.setInt(2, pageSize);
-            ps.setInt(3, offset);
-
             try (ResultSet rs = ps.executeQuery()) {
-
                 while (rs.next()) {
-
-                    list.add(new PatientSummary(
-                            rs.getInt("patient_id"),
-                            rs.getString("patient_name"),
-                            rs.getString("mobile_number"),
-                            rs.getInt("age"),
-                            rs.getString("gender")
-                    ));
+                    list.add(new Object[] {
+                        rs.getInt("patient_id"),
+                        rs.getString("patient_name"),
+                        rs.getString("mobile_number"),
+                        rs.getInt("age"),
+                        rs.getString("gender")
+                    });
                 }
             }
-
-            logger.info(
-                    "Loaded {} patients for userId={}",
-                    list.size(),
-                    userId
-            );
-
+            logger.info("Loaded {} patients for userId={}", list.size(), userId);
+            if (list.isEmpty()) {
+                logger.warn("No patients found for userId={}", userId);
+            }
         } catch (SQLException e) {
-
-            logger.error(
-                    "Failed fetching paginated patients for userId={}",
-                    userId,
-                    e
-            );
-
-            throw new DatabaseException(
-                    "Failed fetching patients for userId=" + userId,
-                    e
-            );
+            logger.error("Failed fetching patients for userId={}", userId, e);
+            throw new DatabaseException("Failed fetching patients for userId=" + userId, e);
         }
+        return list;
+    }
 
+    @Override
+    public List<Object[]> searchPatientsByMobile(int userId, String mobile) throws DatabaseException {
+        List<Object[]> list = new ArrayList<>();
+        Connection con = connectionSupplier.get();
+        try (PreparedStatement ps = con.prepareStatement(SqlQueries.PATIENT_SEARCH_BY_MOBILE)) {
+            logger.info("Searching patients userId={} mobileLike={}", userId, mobile);
+            ps.setInt(1, userId);
+            ps.setString(2, "%" + mobile + "%");
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    list.add(new Object[] {
+                        rs.getInt("patient_id"),
+                        rs.getString("patient_name"),
+                        rs.getString("mobile_number"),
+                        rs.getInt("age"),
+                        rs.getString("gender")
+                    });
+                }
+            }
+        } catch (SQLException e) {
+            logger.error("Failed searching patients for userId={}", userId, e);
+            throw new DatabaseException("Failed searching patients for userId=" + userId, e);
+        }
+        logger.info("Search returned {} patients", list.size());
         return list;
     }
     @Override
     public int getPatientCount(int userId) throws DatabaseException {
 
-        String sql = """
-        SELECT COUNT(*)
-        FROM PatientHistory
-        WHERE user_id = ?
-    """;
-
         Connection con = connectionSupplier.get();
 
-        try (PreparedStatement ps = con.prepareStatement(sql)) {
+        try (PreparedStatement ps =
+                     con.prepareStatement(SqlQueries.PATIENT_COUNT_BY_USER)) {
 
             ps.setInt(1, userId);
 
@@ -215,44 +189,60 @@ public final class JdbcPatientRepository implements PatientRepository {
 
         } catch (SQLException e) {
 
-            logger.error(
-                    "Failed counting patients for userId={}",
-                    userId,
-                    e
-            );
+            logger.error("Failed counting patients for userId={}", userId, e);
 
             throw new DatabaseException(
-                    "Failed counting patients",
-                    e
-            );
+                    "Failed counting patients for userId=" + userId,
+                    e);
         }
 
         return 0;
     }
     @Override
-    public List<PatientSummary> searchPatientsByMobile(int userId, String mobile) throws DatabaseException {
-        List<PatientSummary> list = new ArrayList<>();
+    public List<Object[]> getPatientsPage(
+            int userId,
+            int offset,
+            int limit)
+            throws DatabaseException {
+
+        List<Object[]> list = new ArrayList<>();
+
         Connection con = connectionSupplier.get();
-        try (PreparedStatement ps = con.prepareStatement(SqlQueries.PATIENT_SEARCH_BY_MOBILE)) {
-            logger.info("Searching patients userId={} mobileLike={}", userId, mobile);
+
+        try (PreparedStatement ps =
+                     con.prepareStatement(
+                             SqlQueries.PATIENT_SELECT_PAGE_BY_USER)) {
+
             ps.setInt(1, userId);
-            ps.setString(2, "%" + mobile + "%");
+            ps.setInt(2, limit);
+            ps.setInt(3, offset);
+
             try (ResultSet rs = ps.executeQuery()) {
+
                 while (rs.next()) {
-                    list.add(new PatientSummary (
-                        rs.getInt("patient_id"),
-                        rs.getString("patient_name"),
-                        rs.getString("mobile_number"),
-                        rs.getInt("age"),
-                        rs.getString("gender")
-                    ));
+
+                    list.add(new Object[] {
+                            rs.getInt("patient_id"),
+                            rs.getString("patient_name"),
+                            rs.getString("mobile_number"),
+                            rs.getInt("age"),
+                            rs.getString("gender")
+                    });
                 }
             }
+
         } catch (SQLException e) {
-            logger.error("Failed searching patients for userId={}", userId, e);
-            throw new DatabaseException("Failed searching patients for userId=" + userId, e);
+
+            logger.error(
+                    "Failed loading page of patients for userId={}",
+                    userId,
+                    e);
+
+            throw new DatabaseException(
+                    "Failed loading patient page for userId=" + userId,
+                    e);
         }
-        logger.info("Search returned {} patients", list.size());
+
         return list;
     }
 }

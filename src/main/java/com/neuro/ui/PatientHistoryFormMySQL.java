@@ -11,7 +11,9 @@ import java.awt.event.KeyEvent;
 import javax.swing.*;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-
+import java.sql.SQLIntegrityConstraintViolationException;
+import com.neuro.constants.MessageConstants;
+import com.neuro.constants.ErrorConstants;
 public class PatientHistoryFormMySQL extends JFrame {
     private static final Logger logger = LogManager.getLogger(PatientHistoryFormMySQL.class);
     private JTextField txtName, txtMobile, txtAge, txtOccupation;
@@ -43,19 +45,22 @@ public class PatientHistoryFormMySQL extends JFrame {
         logger.info("Opening Patient History Form for userId={}", userId);
 
         setTitle("Patient History Form");
-        setSize(950, 750);
+        setSize(750, 750);
         setLocationRelativeTo(null);
         setDefaultCloseOperation(DISPOSE_ON_CLOSE);
+        setResizable(false);
 
         JPanel panel = new JPanel(new GridBagLayout());
+        panel.setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
         JScrollPane scrollPane = new JScrollPane(panel);
         add(scrollPane);
 
         GridBagConstraints gbc = new GridBagConstraints();
-        gbc.insets = new Insets(5, 5, 5, 5);
+        gbc.insets = new Insets(3, 0, 3, 0);
         gbc.fill = GridBagConstraints.HORIZONTAL;
 
         int y = 0;
+        gbc.gridwidth = 1;
 
         // ===== Fields =====
         txtName = new JTextField(20);
@@ -97,21 +102,38 @@ public class PatientHistoryFormMySQL extends JFrame {
         txtTemp = new JTextField(5);
 
         // ===== Layout =====
+        y = addSectionHeader(panel, gbc, y, "Patient Information");
         y = addRow(panel, gbc, y, "Name", txtName);
         y = addRow(panel, gbc, y, "Mobile", txtMobile);
-        y = addRow(panel, gbc, y, "Age", txtAge);
-        y = addRow(panel, gbc, y, "Gender", cmbGender);
-        y = addRow(panel, gbc, y, "Marital", cmbMarital);
+        JPanel demographicPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
+
+        demographicPanel.add(new JLabel("Age"));
+        demographicPanel.add(txtAge);
+
+        demographicPanel.add(new JLabel("Gender"));
+        demographicPanel.add(cmbGender);
+
+        demographicPanel.add(new JLabel("Marital"));
+        demographicPanel.add(cmbMarital);
+
+        y = addRow(panel, gbc, y, "Patient Info", demographicPanel);
         y = addRow(panel, gbc, y, "Address", txtAddress);
         y = addRow(panel, gbc, y, "Occupation", txtOccupation);
-        y = addRow(panel, gbc, y, "Blood Group", txtBloodGroup);
+        JPanel physicalPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
+        physicalPanel.setBorder(null);
+        physicalPanel.setOpaque(false);
+        txtBloodGroup.setColumns(5);
+        physicalPanel.add(new JLabel("Blood"));
+        physicalPanel.add(txtBloodGroup);
+        physicalPanel.add(new JLabel("Height"));
+        physicalPanel.add(txtHeight);
+        physicalPanel.add(new JLabel("cm"));
+        physicalPanel.add(new JLabel("Weight"));
+        physicalPanel.add(txtWeight);
+        physicalPanel.add(new JLabel("kg"));
 
-        JPanel hw = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        hw.add(txtHeight);
-        hw.add(new JLabel("cm"));
-        hw.add(txtWeight);
-        hw.add(new JLabel("kg"));
-        y = addRow(panel, gbc, y, "Height / Weight", hw);
+        y = addRow(panel, gbc, y, "Physical", physicalPanel);
+        y = addSectionHeader(panel, gbc, y, "Medical History");
 
         y = addRow(panel, gbc, y, "Duration", txtDuration);
         y = addRow(panel, gbc, y, "Main Disease", txtMainDisease);
@@ -120,14 +142,15 @@ public class PatientHistoryFormMySQL extends JFrame {
 
         // ===== Pain Points =====
         JPanel painPanel = new JPanel(new GridLayout(0, 2));
-
+        painPanel.setBorder(null);
+        painPanel.setOpaque(false);
         String[] names = {
             "Pan", "Gas", "GasI", "WD", "Gal", "Spl", "Liv", "Mu", "Rtov", "Ltov", "Dys", "Const", "Liv0", "Mu0",
             "Folic", "Thia", "B12", "Nia"
         };
 
         String[] scale = {"0", "1", "2", "3", "4"};
-
+        y = addSectionHeader(panel, gbc, y, "Examination");
         for (int i = 0; i < names.length; i++) {
             painFields[i] = new JComboBox<>(scale);
             painPanel.add(new JLabel(names[i]));
@@ -146,6 +169,8 @@ public class PatientHistoryFormMySQL extends JFrame {
 
         // ===== Vitals =====
         JPanel vitals = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        vitals.setBorder(null);
+        vitals.setOpaque(false);
         vitals.add(new JLabel("BP"));
         vitals.add(txtBP);
         vitals.add(new JLabel("Pulse"));
@@ -203,14 +228,52 @@ public class PatientHistoryFormMySQL extends JFrame {
         enableEnterFocus(txtTemp);
         // ===== SAVE BUTTON =====
         JButton btnSave = new JButton("Save");
+
         btnSave.addActionListener(e -> saveData());
+        getRootPane().setDefaultButton(btnSave);
+        btnSave.setBackground(new Color(0, 120, 215));
+        //btnSave.setForeground(Color.WHITE);
+        btnSave.setFocusPainted(false);
+        btnSave.setPreferredSize(new Dimension(100, 35));
+
+        JPanel savePanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
+        savePanel.add(btnSave);
 
         gbc.gridx = 0;
         gbc.gridy = y;
         gbc.gridwidth = 2;
-        panel.add(btnSave, gbc);
+        panel.add(savePanel, gbc);
+        registerEscapeKey();
     }
+    private int addSectionHeader(
+            JPanel panel,
+            GridBagConstraints gbc,
+            int y,
+            String title) {
 
+        JLabel lbl = new JLabel("  " + title);
+        lbl.setFont(new Font("Segoe UI", Font.BOLD, 15));
+        lbl.setForeground(Color.WHITE);
+        lbl.setOpaque(true);
+        lbl.setBackground(new Color(0, 102, 204));
+
+        // Increase height
+        lbl.setPreferredSize(new Dimension(0, 35));
+
+        // Optional: add internal padding
+        lbl.setBorder(BorderFactory.createEmptyBorder(8, 10, 8, 10));
+
+        gbc.gridx = 0;
+        gbc.gridy = y;
+        gbc.gridwidth = 2;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+
+        panel.add(lbl, gbc);
+
+        gbc.gridwidth = 1;
+
+        return y + 1;
+    }
     private void enableEnterFocus(Component component) {
 
         // JTextField + JComboBox
@@ -261,7 +324,7 @@ public class PatientHistoryFormMySQL extends JFrame {
 
             if (txtName.getText().trim().isEmpty()) {
                 logger.warn("Save blocked: patient name empty");
-                JOptionPane.showMessageDialog(this, "Patient name required");
+                DialogUtil.warning(this, ErrorConstants.PATIENT_NAME_REQD);
                 return;
             }
 
@@ -321,33 +384,72 @@ public class PatientHistoryFormMySQL extends JFrame {
                     new java.sql.Timestamp(System.currentTimeMillis()));
 
             logger.info("Patient saved successfully name={} userId={}", txtName.getText(), userId);
-
-            JOptionPane.showMessageDialog(this, "Saved!");
+            DialogUtil.info(this, MessageConstants.SAVED);
             dispose();
 
         } catch (NumberFormatException e) {
             logger.warn("Invalid numeric input while saving patient", e);
-            JOptionPane.showMessageDialog(this, "Invalid age/height/weight values");
-        } catch (Exception e) {
-            logger.error("Patient save failed userId={}", userId, e);
-            JOptionPane.showMessageDialog(this, e.getMessage());
+            DialogUtil.error(this, ErrorConstants.INVALID_AGE_HEIGHT_WEIGHT);
+        } catch (SQLIntegrityConstraintViolationException e) {
+
+            logger.warn(
+                    "Duplicate patient mobile={} userId={}",
+                    txtMobile.getText(),
+                    userId);
+
+            DialogUtil.warning(
+                    this,ErrorConstants.DUPLICATE_MOBILE);
+        }
+        catch (Exception e) {
+
+            logger.error(
+                    "Patient save failed userId={}",
+                    userId,
+                    e);
+
+            DialogUtil.error(
+                    this,ErrorConstants.UNABLE_TO_SAVE_PATIENT);
         }
     }
 
     private JTextArea createArea() {
-        JTextArea a = new JTextArea(3, 20);
+        JTextArea a = new JTextArea(2, 20);
         a.setLineWrap(true);
+        a.setWrapStyleWord(true);
+
+        a.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
+
         return a;
     }
 
     private int addRow(JPanel panel, GridBagConstraints gbc, int y, String label, Component field) {
+
         gbc.gridx = 0;
         gbc.gridy = y;
         panel.add(new JLabel(label), gbc);
 
         gbc.gridx = 1;
-        panel.add(field instanceof JTextArea ? new JScrollPane(field) : field, gbc);
+
+        if (field instanceof JTextArea area) {
+            JScrollPane sp = new JScrollPane(area);
+            sp.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY));
+            panel.add(sp, gbc);
+        } else if (field instanceof JPanel) {
+            panel.add(field, gbc);   // NO BORDER for panels
+        } else {
+            ((JComponent) field).setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY));
+            panel.add(field, gbc);
+        }
 
         return y + 1;
+    }
+
+    private void registerEscapeKey() {
+
+        getRootPane()
+                .registerKeyboardAction(
+                        e -> dispose(),
+                        KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0),
+                        JComponent.WHEN_IN_FOCUSED_WINDOW);
     }
 }

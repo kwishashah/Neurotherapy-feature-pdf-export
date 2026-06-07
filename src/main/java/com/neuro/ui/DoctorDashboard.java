@@ -6,18 +6,16 @@ package com.neuro.ui;
 import com.neuro.app.AppContext;
 import com.neuro.config.ClinicConfig;
 import com.neuro.model.ClinicInfo;
-import com.neuro.model.PatientSummary;
 import com.neuro.repo.PatientRepository;
 import com.neuro.session.UserSession;
 import java.awt.*;
 import java.awt.event.*;
 import java.util.List;
-import java.util.Stack;
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-
+import com.neuro.constants.*;
 public class DoctorDashboard extends JFrame {
 
     private JTextField txtSearchMobile;
@@ -31,16 +29,17 @@ public class DoctorDashboard extends JFrame {
 
     private final AppContext context;
     private final PatientRepository patientRepo;
+    private static final int PAGE_SIZE = 20;
+
     private int currentPage = 1;
-
-    private final int pageSize = 10;
-
-    private JButton btnNext;
-    private JButton btnPrev;
-    private JButton btnFirst;
-    private JButton btnLast;
+    private int totalPages = 1;
 
     private JLabel lblPageInfo;
+    private JButton btnFirst;
+    private JButton btnPrev;
+    private JButton btnNext;
+    private JButton btnLast;
+
     public DoctorDashboard(int userId, AppContext context) {
         this.context = context;
         this.patientRepo = context.patientRepo();
@@ -53,6 +52,7 @@ public class DoctorDashboard extends JFrame {
         setLocationRelativeTo(null);
         setDefaultCloseOperation(EXIT_ON_CLOSE);
         setLayout(new BorderLayout(10, 10));
+        setResizable(false);
 
         // ================= TOP BAR =================
         JPanel topBar = new JPanel(new BorderLayout());
@@ -129,44 +129,58 @@ public class DoctorDashboard extends JFrame {
         mainPanel.add(new JScrollPane(tblPatients), BorderLayout.CENTER);
 
         JButton btnView = new JButton("View Details");
+        btnView.setMnemonic(KeyEvent.VK_V);
 
-        btnPrev = new JButton("Previous");
+        btnFirst = new JButton("⏮");
+        btnPrev = new JButton("◀");
+        btnNext = new JButton("▶");
+        btnLast = new JButton("⏭");
 
-        btnNext = new JButton("Next");
-        btnFirst = new JButton("First");
+        lblPageInfo = new JLabel("Page 1 of 1");
 
-        btnLast = new JButton("Last");
-
-        lblPageInfo = new JLabel("Page 1");
-
-        JPanel bottomPanel = new JPanel(new BorderLayout());
-
-        bottomPanel.add(btnView, BorderLayout.WEST);
-
-        JPanel paginationPanel = new JPanel();
-
+        JPanel paginationPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
         paginationPanel.add(btnFirst);
         paginationPanel.add(btnPrev);
         paginationPanel.add(lblPageInfo);
         paginationPanel.add(btnNext);
         paginationPanel.add(btnLast);
 
-        bottomPanel.add(paginationPanel, BorderLayout.EAST);
+        JPanel southPanel = new JPanel(new BorderLayout());
+        southPanel.add(btnView, BorderLayout.WEST);
+        southPanel.add(paginationPanel, BorderLayout.CENTER);
 
-        mainPanel.add(bottomPanel, BorderLayout.SOUTH);
+        mainPanel.add(southPanel, BorderLayout.SOUTH);
 
         // ================= ACTIONS =================
         btnSearch.addActionListener(e -> searchPatients());
         btnView.addActionListener(e -> viewPatientDetails());
-        btnPrev.addActionListener(e -> previousPage());
-        btnFirst.addActionListener(e -> firstPage());
 
-        btnLast.addActionListener(e -> lastPage());
-        btnNext.addActionListener(e -> nextPage());
         btnAddPatient.addActionListener(e -> openPatientForm());
 
         btnLogout.addActionListener(e -> logout());
+        btnFirst.addActionListener(e -> {
+            currentPage = 1;
+            loadPatientsPage();
+        });
 
+        btnPrev.addActionListener(e -> {
+            if (currentPage > 1) {
+                currentPage--;
+                loadPatientsPage();
+            }
+        });
+
+        btnNext.addActionListener(e -> {
+            if (currentPage < totalPages) {
+                currentPage++;
+                loadPatientsPage();
+            }
+        });
+
+        btnLast.addActionListener(e -> {
+            currentPage = totalPages;
+            loadPatientsPage();
+        });
         settingsBtn.addActionListener(e -> {
             ClinicSettingsDialog dialog = new ClinicSettingsDialog();
             dialog.setModal(true);
@@ -181,34 +195,10 @@ public class DoctorDashboard extends JFrame {
             }
         });
 
-        loadPatients();
+        loadPatientsPage();
         logger.info("Dashboard initialized successfully for userId={}", userId);
     }
-    private void firstPage() {
 
-        currentPage = 1;
-
-        loadPatients();
-    }
-    private void lastPage() {
-
-        try {
-
-            int totalRecords =
-                    patientRepo.getPatientCount(userId);
-
-            int totalPages =
-                    (int) Math.ceil((double) totalRecords / pageSize);
-
-            currentPage = totalPages;
-
-            loadPatients();
-
-        } catch (Exception e) {
-
-            logger.error("Failed moving to last page", e);
-        }
-    }
     // ================= OPEN FORM =================
     private void openPatientForm() {
         logger.info("Opening patient registration form for userId={}", userId);
@@ -218,7 +208,7 @@ public class DoctorDashboard extends JFrame {
             @Override
             public void windowClosed(WindowEvent e) {
                 currentPage=1;
-                loadPatients();
+                loadPatientsPage();
             }
         });
 
@@ -226,134 +216,54 @@ public class DoctorDashboard extends JFrame {
     }
 
     // ================= LOAD ALL =================
-
-    private void loadPatients() {
+    private void loadPatientsPage() {
 
         tableModel.setRowCount(0);
 
         try {
 
-            logger.info(
-                    "Loading patients page={} pageSize={} userId={}",
-                    currentPage,
-                    pageSize,
-                    userId
-            );
+            int totalRecords = patientRepo.getPatientCount(userId);
 
-            List<PatientSummary> patients =
-                    patientRepo.getPatients(
-                            userId,
-                            currentPage,
-                            pageSize
-                    );
-
-            for (PatientSummary patient : patients) {
-
-                tableModel.addRow(new Object[]{
-                        patient.patientId(),
-                        patient.name(),
-                        patient.mobile(),
-                        patient.age(),
-                        patient.gender()
-
-                });
-
-            }
-
-            updatePaginationControls();
-
-            logger.info(
-                    "Loaded {} patients into dashboard",
-                    patients.size()
-            );
-
-        } catch (Exception ex) {
-
-            logger.error(
-                    "Failed loading patients for userId={}",
-                    userId,
-                    ex
-            );
-
-            JOptionPane.showMessageDialog(
-                    this,
-                    "Error loading patients:\n" + ex.getMessage()
-            );
-        }
-    }
-    private void nextPage() {
-
-        try {
-
-            int totalRecords =
-                    patientRepo.getPatientCount(userId);
-
-            int totalPages =
-                    (int) Math.ceil((double) totalRecords / pageSize);
-
-            if (currentPage < totalPages) {
-
-                currentPage++;
-
-                loadPatients();
-            }
-
-        } catch (Exception e) {
-
-            logger.error("Failed moving to next page", e);
-
-            JOptionPane.showMessageDialog(
-                    this,
-                    "Failed loading next page:\n" + e.getMessage()
-            );
-        }
-    }
-    private void previousPage() {
-
-        if (currentPage > 1) {
-
-            currentPage--;
-
-            loadPatients();
-        }
-    }
-    private void updatePaginationControls() {
-
-        try {
-
-            int totalRecords =
-                    patientRepo.getPatientCount(userId);
-
-            int totalPages =
-                    (int) Math.ceil((double) totalRecords / pageSize);
+            totalPages = (int) Math.ceil((double) totalRecords / PAGE_SIZE);
 
             if (totalPages == 0) {
                 totalPages = 1;
             }
 
+            int offset = (currentPage - 1) * PAGE_SIZE;
+
+            List<Object[]> patients =
+                    patientRepo.getPatientsPage(userId, offset, PAGE_SIZE);
+
+            for (Object[] row : patients) {
+                tableModel.addRow(row);
+            }
+
             lblPageInfo.setText(
-                    "Page " + currentPage + " of " + totalPages
-            );
+                    "Page " + currentPage + " of " + totalPages);
 
-            btnPrev.setEnabled(currentPage > 1);
-            btnFirst.setEnabled(currentPage > 1);
+            updatePaginationButtons();
 
-            btnLast.setEnabled(currentPage < totalPages);
-            btnNext.setEnabled(currentPage < totalPages);
-
-        } catch (Exception e) {
-
-            logger.error("Failed updating pagination controls", e);
+        } catch (Exception ex) {
+            DialogUtil.error(this, ErrorConstants.ERROR_LOADING_PATIENTS);
         }
     }
+    private void updatePaginationButtons() {
+
+        btnFirst.setEnabled(currentPage > 1);
+        btnPrev.setEnabled(currentPage > 1);
+
+        btnNext.setEnabled(currentPage < totalPages);
+        btnLast.setEnabled(currentPage < totalPages);
+    }
+
     // ================= SEARCH =================
     private void searchPatients() {
 
         String mobile = txtSearchMobile.getText().trim();
 
         if (mobile.isEmpty()) {
-            currentPage=1;
-            loadPatients();
+            loadPatientsPage();
             return;
         }
 
@@ -361,23 +271,16 @@ public class DoctorDashboard extends JFrame {
 
         try {
             logger.info("Searching patients for userId={} mobile={}", userId, mobile);
-            List<PatientSummary> patients = patientRepo.searchPatientsByMobile(userId, mobile);
+            List<Object[]> patients = patientRepo.searchPatientsByMobile(userId, mobile);
 
-            for (PatientSummary patient : patients) {
-
-                tableModel.addRow(new Object[]{
-                        patient.patientId(),
-                        patient.name(),
-                        patient.mobile(),
-                        patient.age(),
-                        patient.gender()
-                });
+            for (Object[] row : patients) {
+                tableModel.addRow(row);
             }
             logger.info("Search returned {} records", patients.size());
 
         } catch (Exception ex) {
             logger.error("Patient search failed for mobile={}", mobile, ex);
-            JOptionPane.showMessageDialog(this, "Search error:\n" + ex.getMessage());
+            DialogUtil.error(this, ErrorConstants.SEARCH_FAILED);
         }
     }
 
@@ -388,7 +291,7 @@ public class DoctorDashboard extends JFrame {
 
         if (row == -1) {
             logger.warn("View details attempted without selecting patient");
-            JOptionPane.showMessageDialog(this, "Please select a patient.");
+            DialogUtil.warning(this,ErrorConstants.SELECT_PATIENT);
             return;
         }
 
@@ -400,15 +303,20 @@ public class DoctorDashboard extends JFrame {
 
     // ================= LOGOUT =================
     private void logout() {
-        logger.info("Logout initiated by userId={}", userId);
-        int confirm = JOptionPane.showConfirmDialog(
-                this, "Are you sure you want to logout?", "Logout", JOptionPane.YES_NO_OPTION);
 
-        if (confirm == JOptionPane.YES_OPTION) {
+        logger.info("Logout initiated by userId={}", userId);
+
+        if (DialogUtil.confirm(
+                this,
+                "Are you sure you want to logout?",
+                "Logout")) {
+
             logger.info("User {} logged out successfully", userId);
+
             UserSession.clear();
             new LoginFrame(context).setVisible(true);
             dispose();
+
         } else {
 
             logger.info("Logout cancelled by userId={}", userId);

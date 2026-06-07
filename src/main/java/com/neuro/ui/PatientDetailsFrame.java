@@ -5,6 +5,8 @@ package com.neuro.ui;
 
 import com.neuro.app.AppContext;
 import com.neuro.config.ClinicConfig;
+import com.neuro.constants.ErrorConstants;
+import com.neuro.constants.MessageConstants;
 import com.neuro.repo.queries.SqlQueries;
 import com.neuro.db.DBConnection;
 import com.neuro.model.ClinicInfo;
@@ -28,7 +30,7 @@ import org.apache.pdfbox.pdmodel.font.PDFont;
 import org.apache.pdfbox.pdmodel.font.PDType1Font;
 import org.apache.pdfbox.pdmodel.graphics.image.LosslessFactory;
 import org.apache.pdfbox.pdmodel.graphics.image.PDImageXObject;
-
+import java.awt.event.KeyEvent;
 public class PatientDetailsFrame extends JFrame {
     private static final Logger logger = LogManager.getLogger(PatientDetailsFrame.class);
     private JTextArea textArea;
@@ -53,6 +55,7 @@ public class PatientDetailsFrame extends JFrame {
         setSize(900, 700);
         setLocationRelativeTo(null);
         setDefaultCloseOperation(DISPOSE_ON_CLOSE);
+        setResizable(false);
 
         setLayout(new BorderLayout());
 
@@ -91,11 +94,11 @@ public class PatientDetailsFrame extends JFrame {
                     Desktop.getDesktop().open(new java.io.File(reportPath));
                 } else {
                     logger.warn("No report available for patientId={}", patientId);
-                    JOptionPane.showMessageDialog(this, "No report available");
+                    DialogUtil.warning(this, ErrorConstants.NO_REPORT_AVAILABLE);
                 }
             } catch (Exception ex) {
                 logger.error("Failed opening report for patientId={}", patientId, ex);
-                JOptionPane.showMessageDialog(this, "Cannot open file");
+                DialogUtil.error(this,ErrorConstants.CANNOT_OPEN_FILE);
             }
         });
 
@@ -150,6 +153,7 @@ public class PatientDetailsFrame extends JFrame {
         // ================= LOAD DATA =================
         loadPatientDetails();
         loadSessions();
+        registerEscapeKey();
     }
 
     // ================= LOAD SESSIONS =================
@@ -294,7 +298,7 @@ public class PatientDetailsFrame extends JFrame {
 
         } catch (Exception e) {
             logger.error("Error loading patient details patientId={}", patientId, e);
-            JOptionPane.showMessageDialog(this, "Error loading details:\n" + e.getMessage());
+            DialogUtil.error(this, ErrorConstants.UNABLE_TO_LOAD_PATIENT_DETAILS);
         }
     }
 
@@ -484,12 +488,12 @@ public class PatientDetailsFrame extends JFrame {
                 logger.info("PDF exported successfully {}", path);
             }
 
-            JOptionPane.showMessageDialog(this, "PDF Saved!");
+            DialogUtil.info(this, MessageConstants.SAVED);
 
         } catch (Exception e) {
             // e.printStackTrace();
             logger.error("PDF export failed for patientId={}", patientId, e);
-            JOptionPane.showMessageDialog(this, "Error creating PDF");
+            DialogUtil.error(this,ErrorConstants.PDF_EXPORT_FAILED);
         }
     }
 
@@ -540,4 +544,15 @@ public class PatientDetailsFrame extends JFrame {
         }
         return sb.toString();
     }
+    private void registerEscapeKey() {
+
+        getRootPane().registerKeyboardAction(
+                e -> {
+                    parentFrame.setVisible(true);
+                    dispose();
+                },
+                KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0),
+                JComponent.WHEN_IN_FOCUSED_WINDOW);
+    }
+
 }

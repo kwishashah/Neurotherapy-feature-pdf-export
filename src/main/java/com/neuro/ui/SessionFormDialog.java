@@ -11,7 +11,8 @@ import java.sql.Date;
 import javax.swing.*;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-
+import java.awt.event.KeyEvent;
+import com.neuro.constants.*;
 public class SessionFormDialog extends JDialog {
 
     private static final Logger logger = LogManager.getLogger(SessionFormDialog.class);
@@ -59,6 +60,7 @@ public class SessionFormDialog extends JDialog {
         setTitle(sessionId == null ? "Add Session" : "Update Session");
 
         setSize(750, 650);
+        setResizable(false);
         setLocationRelativeTo(parent);
 
         initComponents();
@@ -76,6 +78,8 @@ public class SessionFormDialog extends JDialog {
         } else {
             loadSessionData();
         }
+
+        registerEscapeKey();
     }
 
     private void initComponents() {
@@ -149,7 +153,7 @@ public class SessionFormDialog extends JDialog {
         btnSave.addActionListener(this::handleSave);
 
         bottom.add(btnSave, BorderLayout.SOUTH);
-
+        getRootPane().setDefaultButton(btnSave);
         mainPanel.add(bottom, BorderLayout.SOUTH);
 
         add(mainPanel);
@@ -234,8 +238,7 @@ public class SessionFormDialog extends JDialog {
         } catch (Exception e) {
 
             logger.error("Error loading session sessionId={} patientId={}", sessionId, patientId, e);
-
-            JOptionPane.showMessageDialog(this, "Error loading session");
+            DialogUtil.error(this, ErrorConstants.UNABLE_TO_LOAD_SESSION);
         }
     }
 
@@ -291,31 +294,29 @@ public class SessionFormDialog extends JDialog {
                 sessionRepo.addSession(patientId, sessionNo, sqlDate, treatment, pain, "", summary);
 
                 logger.info("Session added successfully patientId={} sessionNo={}", patientId, sessionNo);
-
-                JOptionPane.showMessageDialog(this, "Session Added!");
+                DialogUtil.info(this, MessageConstants.SESSION_ADDED);
 
             } else {
 
                 logger.info("Updating sessionId={} patientId={}", sessionId, patientId);
-
                 sessionRepo.updateSession(sessionId, sessionNo, sqlDate, treatment, pain, "", summary);
-
                 logger.info("Session updated successfully sessionId={}", sessionId);
-
-                JOptionPane.showMessageDialog(this, "Session Updated!");
+                DialogUtil.info(this, MessageConstants.SESSION_UPDATED);
             }
-
             logger.info("Refreshing sessions grid for patientId={}", patientId);
-
             parentFrame.loadSessions();
-
             dispose();
-
-        } catch (Exception ex) {
-
+            }
+            catch (Exception ex) {
             logger.error("Session save failed patientId={} sessionId={}", patientId, sessionId, ex);
-
-            JOptionPane.showMessageDialog(this, "Error: " + ex.getMessage());
+            DialogUtil.error(this, ErrorConstants.UNABLE_TO_SAVE_SESSION);
         }
+    }
+    private void registerEscapeKey() {
+        getRootPane()
+                .registerKeyboardAction(
+                        e -> dispose(),
+                        KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0),
+                        JComponent.WHEN_IN_FOCUSED_WINDOW);
     }
 }
